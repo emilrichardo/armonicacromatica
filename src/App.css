@@ -15,7 +15,7 @@
 
 .top-nav {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) auto minmax(330px, 1fr);
+  grid-template-columns: minmax(160px, 0.9fr) auto minmax(330px, 1fr) auto;
   gap: clamp(0.65rem, 1.2vw, 1rem);
   align-items: center;
   padding: 0.42rem clamp(0.65rem, 1vw, 0.9rem) 0.58rem;
@@ -83,7 +83,8 @@
 }
 
 .toggle-chip,
-.primary-button {
+.primary-button,
+.theme-toggle {
   border: 0;
   border-radius: 16px;
   font: inherit;
@@ -113,12 +114,40 @@
 }
 
 .toggle-chip.active {
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--accent);
+  color: #04100b;
 }
 
 .toggle-chip.active small {
-  color: var(--paper);
+  color: rgba(4, 16, 11, 0.72);
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  min-height: 42px;
+  padding: 0.52rem 0.72rem;
+  justify-self: end;
+  background: var(--control);
+  color: var(--ink);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.theme-toggle span:first-child {
+  display: inline-grid;
+  place-items: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #04100b;
+  font-size: 0.64rem;
+  line-height: 1;
 }
 
 .input-select {
@@ -352,7 +381,7 @@
   padding: 0.1rem 0.22rem;
   border-radius: 999px;
   background: var(--accent);
-  color: var(--paper);
+  color: #04100b;
   font-size: 0.46rem;
   font-style: normal;
   font-weight: 900;
@@ -489,7 +518,7 @@
 }
 
 .status-listening {
-  background: #5f6f4f;
+  background: var(--accent);
 }
 
 .status-error {
@@ -529,7 +558,8 @@
 }
 
 .primary-button:hover,
-.toggle-chip:hover {
+.toggle-chip:hover,
+.theme-toggle:hover {
   transform: translateY(-1px);
 }
 
@@ -699,6 +729,23 @@
   }
 
   .toggle-chip small {
+    display: none;
+  }
+
+  .theme-toggle {
+    flex: 0 0 auto;
+    min-height: 34px;
+    width: 38px;
+    padding: 0;
+    border-radius: 12px;
+  }
+
+  .theme-toggle span:first-child {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .theme-toggle span:last-child {
     display: none;
   }
 

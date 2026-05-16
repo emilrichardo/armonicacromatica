@@ -3,23 +3,40 @@
 :root {
   --ink: #181612;
   --paper: #fffdf8;
+  --page: #f4f0e8;
   --panel: #f2eee6;
   --control: #fffaf1;
   --instrument: #d8d0c1;
   --draw: #f3e7e2;
   --line: rgba(24, 22, 18, 0.18);
   --muted: #6f675b;
-  --accent: #9a6f45;
-  --accent-soft: #e3d6c5;
+  --accent: #3ecf8e;
+  --accent-soft: #d8f8e8;
   --font-sans: 'IBM Plex Mono', monospace;
   --font-display: 'Archivo Black', sans-serif;
   color: var(--ink);
-  background: #f4f0e8;
+  background: var(--page);
   font-family: var(--font-sans);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --ink: #f0fff8;
+  --paper: #08100d;
+  --page: #050806;
+  --panel: #0d1511;
+  --control: #14211b;
+  --instrument: #1b2822;
+  --draw: #211b1b;
+  --line: rgba(62, 207, 142, 0.18);
+  --muted: #8aa397;
+  --accent: #3ecf8e;
+  --accent-soft: #123629;
+  color-scheme: dark;
 }
 
 * {
@@ -36,7 +53,7 @@ body {
   width: 100%;
   min-width: 320px;
   min-height: 100vh;
-  background: #f4f0e8;
+  background: var(--page);
 }
 
 button,

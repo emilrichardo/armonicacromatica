@@ -235,6 +235,15 @@ function App() {
   const [selectedInputId, setSelectedInputId] = useState('default')
   const [activeInputLabel, setActiveInputLabel] = useState('Sin dispositivo')
   const [selectedKey, setSelectedKey] = useState(0)
+  const [theme, setTheme] = useState(() => {
+    const savedTheme = window.localStorage.getItem('cromanota-theme')
+
+    if (savedTheme === 'dark' || savedTheme === 'light') {
+      return savedTheme
+    }
+
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  })
   const audioContextRef = useRef(null)
   const analyserRef = useRef(null)
   const detectorRef = useRef(null)
@@ -248,6 +257,11 @@ function App() {
 
   const tuning = TUNINGS[instrument]
   const layout = buildLayout(tuning)
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    window.localStorage.setItem('cromanota-theme', theme)
+  }, [theme])
 
   useEffect(() => {
     detectedRef.current = detected
@@ -565,6 +579,16 @@ function App() {
             ))}
           </div>
         </div>
+
+        <button
+          type="button"
+          className="theme-toggle"
+          onClick={() => setTheme((currentTheme) => (currentTheme === 'dark' ? 'light' : 'dark'))}
+          aria-label={theme === 'dark' ? 'Activar modo claro' : 'Activar modo oscuro'}
+        >
+          <span aria-hidden="true">{theme === 'dark' ? '☼' : '●'}</span>
+          <span>{theme === 'dark' ? 'Claro' : 'Dark'}</span>
+        </button>
       </nav>
 
       <section className="layout-panel">
