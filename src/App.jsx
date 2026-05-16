@@ -126,6 +126,66 @@ function describeAudioError(error) {
   return `${name}.${detail}`.trim()
 }
 
+function buildCandidates(layout, midi) {
+  const candidates = []
+
+  layout.forEach((column) => {
+    const options = [
+      { tone: 'draw', slide: false, note: column.draw },
+      { tone: 'draw', slide: true, note: column.drawSlide },
+      { tone: 'blow', slide: false, note: column.blow },
+      { tone: 'blow', slide: true, note: column.blowSlide },
+    ]
+
+    options.forEach((option) => {
+      if (option.note.midi === midi) {
+        candidates.push({
+          hole: column.hole,
+          tone: option.tone,
+          slide: option.slide,
+          note: option.note,
+        })
+      }
+    })
+  })
+
+  return candidates
+}
+
+function findBestPosition(layout, midi, previousPosition) {
+  const candidates = buildCandidates(layout, midi)
+
+  if (candidates.length === 0) {
+    return null
+  }
+
+  if (!previousPosition) {
+    return candidates.sort((left, right) => {
+      if (left.hole !== right.hole) {
+        return left.hole - right.hole
+      }
+
+      if (left.slide !== right.slide) {
+        return Number(left.slide) - Number(right.slide)
+      }
+
+      return left.tone.localeCompare(right.tone)
+    })[0]
+  }
+
+  return candidates
+    .map((candidate) => {
+      const score =
+        Math.abs(candidate.hole - previousPosition.hole) * 20 +
+        (candidate.tone !== previousPosition.tone ? 6 : 0) +
+        (candidate.slide !== previousPosition.slide ? 2 : 0) +
+        (candidate.slide ? 1 : 0)
+
+      return { candidate, score }
+    })
+    .sort((left, right) => left.score - right.score)[0].candidate
+}
+
 function App() {
   const [instrument, setInstrument] = useState('64')
   const [micState, setMicState] = useState('idle')
@@ -154,6 +214,7 @@ function App() {
   const pendingDetectionRef = useRef(null)
   const lastConfirmedAtRef = useRef(0)
   const detectedRef = useRef(null)
+  const lastPositionRef = useRef(null)
 
   const tuning = TUNINGS[instrument]
   const layout = buildLayout(tuning)
@@ -186,12 +247,6 @@ function App() {
     syncAudioInputs()
   }, [selectedInputId])
 
-  useEffect(() => {
-    return () => {
-      stopListening()
-    }
-  }, [])
-
   function stopListening() {
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current)
@@ -213,6 +268,7 @@ function App() {
     dataRef.current = null
     pendingDetectionRef.current = null
     lastConfirmedAtRef.current = 0
+    lastPositionRef.current = null
     setDetected(null)
     setInputLevel(0)
     setActiveInputLabel('Sin dispositivo')
@@ -226,6 +282,12 @@ function App() {
     }))
     setMicState('idle')
   }
+
+  useEffect(() => {
+    return () => {
+      stopListening()
+    }
+  }, [])
 
   function analyseFrame() {
     const analyser = analyserRef.current
@@ -253,10 +315,10 @@ function App() {
     const [frequency, clarity] = detector
       ? detector.findPitch(data, audioContext.sampleRate)
       : [0, 0]
+    const now = audioContext.currentTime * 1000
 
     if (frequency >= 100 && frequency <= 3000 && clarity >= MIN_CLARITY && level >= MIN_LEVEL) {
       const pitch = frequencyToNoteData(frequency)
-      const now = performance.now()
       const currentCandidate = pendingDetectionRef.current
       const nextDetection = {
         ...pitch,
@@ -273,17 +335,24 @@ function App() {
       if (!sameNote) {
         pendingDetectionRef.current = nextDetection
       } else if (now - currentCandidate.timestamp >= MIN_SUSTAIN_MS) {
+        const matchedPosition = findBestPosition(
+          layout,
+          pitch.note.midi,
+          lastPositionRef.current,
+        )
+
         pendingDetectionRef.current = nextDetection
         lastConfirmedAtRef.current = now
+        lastPositionRef.current = matchedPosition
         setDetected({
           note: pitch.note,
           cents: pitch.cents,
           frequency,
           clarity,
+          position: matchedPosition,
         })
       }
     } else {
-      const now = performance.now()
       pendingDetectionRef.current = null
 
       if (detectedRef.current && now - lastConfirmedAtRef.current >= RELEASE_MS) {
@@ -408,125 +477,45 @@ function App() {
 
   const holeStates = layout.map((column) => ({
     hole: column.hole,
-    drawMode: detected
-      ? column.drawSlide.midi === detected.note.midi
-        ? 'slide'
-        : column.draw.midi === detected.note.midi
-          ? 'natural'
-          : null
-      : null,
-    blowMode: detected
-      ? column.blowSlide.midi === detected.note.midi
-        ? 'slide'
-        : column.blow.midi === detected.note.midi
-          ? 'natural'
-          : null
-      : null,
+    drawMode:
+      detected?.position?.hole === column.hole && detected.position.tone === 'draw'
+        ? detected.position.slide
+          ? 'slide'
+          : 'natural'
+        : null,
+    blowMode:
+      detected?.position?.hole === column.hole && detected.position.tone === 'blow'
+        ? detected.position.slide
+          ? 'slide'
+          : 'natural'
+        : null,
   }))
+
+  const activeSlide = Boolean(detected?.position?.slide)
 
   return (
     <main className="app-shell">
-      <section className="compact-panel">
-        <div className="instrument-toggle" role="tablist" aria-label="Tipo de armonica">
-          {Object.entries(TUNINGS).map(([key, value]) => (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              aria-selected={instrument === key}
-              className={instrument === key ? 'toggle-chip active' : 'toggle-chip'}
-              onClick={() => setInstrument(key)}
-            >
-              <span>{value.label}</span>
-              <small>{value.holes} agujeros</small>
-            </button>
-          ))}
-        </div>
-
-        <label className="input-select">
-          <span>Mic</span>
-          <select
-            value={selectedInputId}
-            onChange={handleInputChange}
-            disabled={micState === 'requesting'}
-          >
-            <option value="default">Micrófono por defecto</option>
-            {audioInputs
-              .filter((device) => device.deviceId && device.deviceId !== 'default')
-              .map((device, index) => (
-                <option key={device.deviceId || `device-${index}`} value={device.deviceId || 'default'}>
-                  {device.label || `Micrófono ${index + 1}`}
-                </option>
-              ))}
-          </select>
-        </label>
-
-        <div className="detector-topline">
-          <span className={`status-dot status-${micState}`}></span>
-          <span>
-            {micState === 'listening' && 'Escuchando'}
-            {micState === 'requesting' && 'Pidiendo permiso'}
-            {micState === 'idle' && 'Microfono apagado'}
-            {micState === 'error' && 'Error'}
-          </span>
-        </div>
-
-        <div className="inline-readout">
-          <div className="note-main">
-            {detected ? detected.note.shortLabel : '...'}
-            {detected?.note.alt ? (
-              <span className="enharmonic">/{detected.note.alt}</span>
-            ) : null}
-          </div>
-          <div className="mini-metrics">
-            <strong>{detected ? `${detected.frequency.toFixed(1)} Hz` : '--'}</strong>
-            <strong>{detected ? formatCents(detected.cents) : '--'}</strong>
-            <strong>{detected ? `${Math.round(detected.clarity * 100)}%` : '--'}</strong>
-          </div>
-        </div>
-
-        <div className="level-panel compact-level">
-          <div className="level-labels">
-            <span>{activeInputLabel}</span>
-            <strong>{Math.round(inputLevel * 100)}%</strong>
-          </div>
-          <div className="level-meter" aria-hidden="true">
-            <div
-              className="level-fill"
-              style={{ transform: `scaleX(${Math.max(0.03, inputLevel)})` }}
-            ></div>
-          </div>
-        </div>
-
-        <div className="detector-actions compact-actions">
-          {micState === 'listening' ? (
-            <button type="button" className="primary-button" onClick={stopListening}>
-              Detener
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="primary-button"
-              onClick={startListening}
-              disabled={micState === 'requesting'}
-            >
-              {micState === 'requesting' ? 'Permiso...' : 'Escuchar'}
-            </button>
-          )}
-          {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
-        </div>
-
-        <div className="debug-strip">
-          <span>{debugInfo.hasGetUserMedia ? 'gUM ok' : 'sin gUM'}</span>
-          <span>{debugInfo.audioContextState}</span>
-          <span>track: {debugInfo.trackReadyState}</span>
-          <span>{debugInfo.trackEnabled ? 'enabled' : 'disabled'}</span>
-          <span>{debugInfo.trackMuted ? 'muted' : 'unmuted'}</span>
-          <span>{debugInfo.sampleRate ? `${debugInfo.sampleRate} Hz` : '--'}</span>
-        </div>
-      </section>
-
       <section className="layout-panel">
+        <div className="note-banner">
+          <div className="note-readout-hero">
+            <div className="note-main">
+              {detected ? detected.note.shortLabel : '...'}
+              {detected?.note.alt ? (
+                <span className="enharmonic">/{detected.note.alt}</span>
+              ) : null}
+            </div>
+            <div className="mini-metrics">
+              <strong>{detected ? `${detected.frequency.toFixed(1)} Hz` : '--'}</strong>
+              <strong>{detected ? formatCents(detected.cents) : '--'}</strong>
+              <strong>
+                {detected?.position
+                  ? `${detected.position.tone === 'draw' ? 'Aspirada' : 'Soplada'} · Agujero ${detected.position.hole}`
+                  : '--'}
+              </strong>
+            </div>
+          </div>
+          <p className="mobile-hint">En celular conviene usarla en horizontal.</p>
+        </div>
         <div className="harmonica-frame">
           <div className="harmonica-mouthpiece"></div>
           <div className="harmonica-body">
@@ -564,10 +553,96 @@ function App() {
               ))}
               </div>
             </div>
-            <div className="slide-indicator-rail">
-              <div className={detected ? 'slide-indicator active' : 'slide-indicator'}></div>
-            </div>
           </div>
+          <div className={activeSlide ? 'slider-lever active' : 'slider-lever'}>
+            <div className="slider-knob"></div>
+          </div>
+        </div>
+      </section>
+
+      <section className="compact-panel">
+        <div className="instrument-toggle" role="tablist" aria-label="Tipo de armonica">
+          {Object.entries(TUNINGS).map(([key, value]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={instrument === key}
+              className={instrument === key ? 'toggle-chip active' : 'toggle-chip'}
+              onClick={() => setInstrument(key)}
+            >
+              <span>{value.label}</span>
+              <small>{value.holes} agujeros</small>
+            </button>
+          ))}
+        </div>
+
+        <label className="input-select">
+          <span>Mic</span>
+          <select
+            value={selectedInputId}
+            onChange={handleInputChange}
+            disabled={micState === 'requesting'}
+          >
+            <option value="default">Micrófono por defecto</option>
+            {audioInputs
+              .filter((device) => device.deviceId && device.deviceId !== 'default')
+              .map((device, index) => (
+                <option key={device.deviceId || `device-${index}`} value={device.deviceId || 'default'}>
+                  {device.label || `Micrófono ${index + 1}`}
+                </option>
+              ))}
+          </select>
+        </label>
+
+        <div className="level-panel compact-level">
+          <div className="level-labels">
+            <span>{activeInputLabel}</span>
+            <strong>{Math.round(inputLevel * 100)}%</strong>
+          </div>
+          <div className="level-meter" aria-hidden="true">
+            <div
+              className="level-fill"
+              style={{ transform: `scaleX(${Math.max(0.03, inputLevel)})` }}
+            ></div>
+          </div>
+        </div>
+
+        <div className="detector-topline">
+          <span className={`status-dot status-${micState}`}></span>
+          <span>
+            {micState === 'listening' && 'Escuchando'}
+            {micState === 'requesting' && 'Pidiendo permiso'}
+            {micState === 'idle' && 'Microfono apagado'}
+            {micState === 'error' && 'Error'}
+          </span>
+        </div>
+
+        <div className="detector-actions compact-actions">
+          {micState === 'listening' ? (
+            <button type="button" className="primary-button" onClick={stopListening}>
+              Detener
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="primary-button"
+              onClick={startListening}
+              disabled={micState === 'requesting'}
+            >
+              {micState === 'requesting' ? 'Permiso...' : 'Escuchar'}
+            </button>
+          )}
+          {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
+        </div>
+
+        <div className="debug-strip">
+          <span>{debugInfo.hasGetUserMedia ? 'gUM ok' : 'sin gUM'}</span>
+          <span>{debugInfo.audioContextState}</span>
+          <span>track: {debugInfo.trackReadyState}</span>
+          <span>{debugInfo.trackEnabled ? 'enabled' : 'disabled'}</span>
+          <span>{debugInfo.trackMuted ? 'muted' : 'unmuted'}</span>
+          <span>{debugInfo.sampleRate ? `${debugInfo.sampleRate} Hz` : '--'}</span>
         </div>
       </section>
     </main>
