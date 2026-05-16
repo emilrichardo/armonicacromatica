@@ -990,12 +990,30 @@
   }
 
   .layout-panel {
+    grid-template-areas:
+      'orientation'
+      'readout'
+      'harmonica'
+      'intro';
     min-height: 0;
     align-content: center;
     padding: 0.8rem 0.6rem;
   }
 
+  .orientation-prompt {
+    grid-area: orientation;
+  }
+
+  .layout-note-readout {
+    grid-area: readout;
+  }
+
+  .harmonica-scroll {
+    grid-area: harmonica;
+  }
+
   .app-intro {
+    grid-area: intro;
     gap: 0.08rem;
     min-height: 48px;
   }
