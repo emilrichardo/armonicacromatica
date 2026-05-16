@@ -1,12 +1,21 @@
 @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 
 :root {
-  --ink: #000000;
-  --paper: #ffffff;
+  --ink: #181612;
+  --paper: #fffdf8;
+  --panel: #f2eee6;
+  --control: #fffaf1;
+  --instrument: #d8d0c1;
+  --line: rgba(24, 22, 18, 0.18);
+  --muted: #6f675b;
+  --accent: #9a6f45;
+  --accent-soft: #e3d6c5;
   --font-sans: 'IBM Plex Mono', monospace;
   --font-display: 'Archivo Black', sans-serif;
   color: var(--ink);
-  background: var(--paper);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(216, 208, 193, 0.45), transparent 34%),
+    linear-gradient(180deg, #fffdf8 0%, #f4f0e8 100%);
   font-family: var(--font-sans);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -28,7 +37,9 @@ body {
   width: 100%;
   min-width: 320px;
   min-height: 100vh;
-  background: var(--paper);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(216, 208, 193, 0.45), transparent 34%),
+    linear-gradient(180deg, #fffdf8 0%, #f4f0e8 100%);
 }
 
 button,
