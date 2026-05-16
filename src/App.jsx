@@ -503,55 +503,58 @@ function App() {
           </div>
         </div>
 
-        <label className="input-select key-select">
-          <span>Tonalidad</span>
-          <select
-            value={selectedKey}
-            onChange={(event) => setSelectedKey(Number(event.target.value))}
-          >
-            {KEY_OPTIONS.map((key) => (
-              <option key={key.label} value={key.root}>
-                {key.label} mayor
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="note-readout-hero nav-note-readout" aria-live="polite">
+          <div className="note-main">
+            {detected ? detected.note.shortLabel : ''}
+            {detected?.note.alt ? (
+              <span className="enharmonic">/{detected.note.alt}</span>
+            ) : null}
+          </div>
+        </div>
 
-        <div className="instrument-toggle" role="tablist" aria-label="Tipo de armonica">
-          {Object.entries(TUNINGS).map(([key, value]) => (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              aria-selected={instrument === key}
-              className={instrument === key ? 'toggle-chip active' : 'toggle-chip'}
-              onClick={() => setInstrument(key)}
+        <div className="nav-controls">
+          <label className="input-select key-select">
+            <span>Tonalidad</span>
+            <select
+              value={selectedKey}
+              onChange={(event) => setSelectedKey(Number(event.target.value))}
             >
-              <span>{value.label}</span>
-              <small>{value.holes} agujeros</small>
-            </button>
-          ))}
+              {KEY_OPTIONS.map((key) => (
+                <option key={key.label} value={key.root}>
+                  {key.label} mayor
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="instrument-toggle" role="tablist" aria-label="Tipo de armonica">
+            {Object.entries(TUNINGS).map(([key, value]) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={instrument === key}
+                className={instrument === key ? 'toggle-chip active' : 'toggle-chip'}
+                onClick={() => setInstrument(key)}
+              >
+                <span>{value.label}</span>
+                <small>{value.holes} agujeros</small>
+              </button>
+            ))}
+          </div>
         </div>
       </nav>
 
       <section className="layout-panel">
         {detected ? (
-          <div className="note-readout-hero">
-            <div className="note-main">
-              {detected.note.shortLabel}
-              {detected.note.alt ? (
-                <span className="enharmonic">/{detected.note.alt}</span>
-              ) : null}
-            </div>
-            <div className="mini-metrics">
-              <strong>{detected.frequency.toFixed(1)} Hz</strong>
-              <strong>{formatCents(detected.cents)}</strong>
-              <strong>
-                {detected.position
-                  ? `${detected.position.tone === 'draw' ? 'Aspirada' : 'Soplada'} · Agujero ${detected.position.hole}`
-                  : ''}
-              </strong>
-            </div>
+          <div className="mini-metrics">
+            <strong>{detected.frequency.toFixed(1)} Hz</strong>
+            <strong>{formatCents(detected.cents)}</strong>
+            <strong>
+              {detected.position
+                ? `${detected.position.tone === 'draw' ? 'Aspirada' : 'Soplada'} · Agujero ${detected.position.hole}`
+                : ''}
+            </strong>
           </div>
         ) : null}
 
