@@ -488,6 +488,19 @@ function App() {
   })
 
   const activeSlide = Boolean(detected?.position?.slide)
+  const getHoleDisplay = (hole) => {
+    if (instrument !== '64') {
+      return {
+        label: hole,
+        isLow: false,
+      }
+    }
+
+    return {
+      label: hole <= 4 ? hole : hole - 4,
+      isLow: hole <= 4,
+    }
+  }
 
   return (
     <main className="app-shell">
@@ -565,16 +578,23 @@ function App() {
                   style={{ gridTemplateColumns: `repeat(${layout.length}, minmax(0, 1fr))` }}
                 >
                 {layout.map((column, index) => (
-                  <HoleBubble
-                    key={`${column.hole}-draw`}
-                    note={column.draw}
-                    slideNote={column.drawSlide}
-                    mode={holeStates[index].drawMode}
-                    tone="draw"
-                    hole={column.hole}
-                    showNumber
-                    altered={isScaleAlteration(column.draw, selectedKey)}
-                  />
+                  (() => {
+                    const display = getHoleDisplay(column.hole)
+
+                    return (
+                      <HoleBubble
+                        key={`${column.hole}-draw`}
+                        note={column.draw}
+                        slideNote={column.drawSlide}
+                        mode={holeStates[index].drawMode}
+                        tone="draw"
+                        hole={display.label}
+                        lowHole={display.isLow}
+                        showNumber
+                        altered={isScaleAlteration(column.draw, selectedKey)}
+                      />
+                    )
+                  })()
                 ))}
                 </div>
               </div>
@@ -670,14 +690,15 @@ function App() {
   )
 }
 
-function HoleBubble({ note, slideNote, mode, tone, hole, showNumber = false, altered = false }) {
+function HoleBubble({ note, slideNote, mode, tone, hole, showNumber = false, lowHole = false, altered = false }) {
   const active = mode !== null
   const isSlide = mode === 'slide'
   const bubbleClass = `hole-bubble ${tone} ${active ? 'active' : ''} ${isSlide ? 'slide-on' : ''} ${altered ? 'altered' : ''}`.trim()
+  const numberClass = lowHole ? 'hole-number low-hole' : 'hole-number'
 
   return (
     <div className={bubbleClass}>
-      {showNumber ? <span className="hole-number">{hole}</span> : null}
+      {showNumber ? <span className={numberClass}>{hole}</span> : null}
       <strong>{note.shortLabel}</strong>
       {isSlide ? (
         <em className="slide-flag">BTN {slideNote.shortLabel}</em>

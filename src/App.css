@@ -333,6 +333,18 @@
   line-height: 1;
 }
 
+.hole-number.low-hole::before {
+  content: '';
+  position: absolute;
+  top: -0.42rem;
+  left: 50%;
+  width: 0.28rem;
+  height: 0.28rem;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: var(--ink);
+}
+
 .slide-flag {
   position: absolute;
   right: -0.22rem;
