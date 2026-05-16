@@ -166,6 +166,27 @@
   font-size: 0.88rem;
 }
 
+.detected-chord {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  max-width: 340px;
+}
+
+.note-pill,
+.octave-toggle {
+  border: 1px solid rgba(98, 56, 31, 0.14);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--ink);
+}
+
+.note-pill {
+  padding: 0.28rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
 .detector-actions {
   display: flex;
   align-items: center;
@@ -196,6 +217,20 @@
     transform 180ms ease,
     box-shadow 180ms ease,
     background-color 180ms ease;
+}
+
+.octave-toggle {
+  padding: 0.62rem 0.82rem;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.octave-toggle.active {
+  background: linear-gradient(135deg, rgba(159, 70, 35, 0.18), rgba(203, 122, 63, 0.28));
+  box-shadow: inset 0 0 0 1px rgba(159, 70, 35, 0.24);
 }
 
 .primary-button {
