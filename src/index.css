@@ -25,17 +25,17 @@
 }
 
 :root[data-theme='dark'] {
-  --ink: #f0fff8;
-  --paper: #08100d;
-  --page: #050806;
-  --panel: #0d1511;
-  --control: #14211b;
-  --instrument: #1b2822;
-  --draw: #211b1b;
-  --line: rgba(62, 207, 142, 0.18);
-  --muted: #8aa397;
+  --ink: #f5f5f5;
+  --paper: #050505;
+  --page: #0a0a0a;
+  --panel: #151515;
+  --control: #202020;
+  --instrument: #2c2c2c;
+  --draw: #342b2b;
+  --line: rgba(245, 245, 245, 0.12);
+  --muted: #9a9a9a;
   --accent: #3ecf8e;
-  --accent-soft: #123629;
+  --accent-soft: #1d3028;
   color-scheme: dark;
 }
 
