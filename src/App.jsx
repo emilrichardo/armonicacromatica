@@ -32,12 +32,31 @@ const TUNINGS = {
   },
 }
 
+const KEY_OPTIONS = [
+  { label: 'C', root: 0 },
+  { label: 'Db', root: 1 },
+  { label: 'D', root: 2 },
+  { label: 'Eb', root: 3 },
+  { label: 'E', root: 4 },
+  { label: 'F', root: 5 },
+  { label: 'F#', root: 6 },
+  { label: 'G', root: 7 },
+  { label: 'Ab', root: 8 },
+  { label: 'A', root: 9 },
+  { label: 'Bb', root: 10 },
+  { label: 'B', root: 11 },
+]
+
+const MAJOR_SCALE_STEPS = new Set([0, 2, 4, 5, 7, 9, 11])
 const MIN_CLARITY = 0.75
 const MIN_LEVEL = 0.02
 const MIN_SUSTAIN_MS = 120
 const MAX_DEVIATION_CENTS = 35
 const RELEASE_MS = 120
-const MAX_SIMULTANEOUS_NOTES = 3
+
+function isScaleAlteration(note, keyRoot) {
+  return !MAJOR_SCALE_STEPS.has((note.midi - keyRoot + 120) % 12)
+}
 
 function midiToFrequency(midi) {
   return 440 * 2 ** ((midi - 69) / 12)
@@ -187,98 +206,20 @@ function findBestPosition(layout, midi, previousPosition) {
     .sort((left, right) => left.score - right.score)[0].candidate
 }
 
-function findBestPositions(layout, midiValues, previousPositions) {
-  const used = new Set()
-
-  return midiValues
-    .map((midi, index) => {
-      const previousPosition = previousPositions[index] ?? previousPositions[0] ?? null
-      const candidates = buildCandidates(layout, midi).filter(
-        (candidate) => !used.has(`${candidate.hole}-${candidate.tone}-${candidate.slide}`),
-      )
-
-      if (candidates.length === 0) {
-        return null
-      }
-
-      const selected = previousPosition
-        ? candidates
-            .map((candidate) => ({
-              candidate,
-              score:
-                Math.abs(candidate.hole - previousPosition.hole) * 20 +
-                (candidate.tone !== previousPosition.tone ? 6 : 0) +
-                (candidate.slide !== previousPosition.slide ? 2 : 0),
-            }))
-            .sort((left, right) => left.score - right.score)[0].candidate
-        : candidates[0]
-
-      used.add(`${selected.hole}-${selected.tone}-${selected.slide}`)
-      return selected
-    })
-    .filter(Boolean)
-}
-
-function detectPolyphonicFrequencies(frequencyData, sampleRate, fftSize) {
-  const binFrequency = sampleRate / fftSize
-  const minBin = Math.max(1, Math.floor(100 / binFrequency))
-  const maxBin = Math.min(frequencyData.length - 2, Math.ceil(3000 / binFrequency))
-  const peaks = []
-
-  for (let index = minBin; index <= maxBin; index += 1) {
-    const value = frequencyData[index]
-
-    if (value < -72) {
-      continue
-    }
-
-    if (value > frequencyData[index - 1] && value > frequencyData[index + 1]) {
-      peaks.push({
-        frequency: index * binFrequency,
-        strength: value,
-      })
-    }
-  }
-
-  return peaks
-    .sort((left, right) => right.strength - left.strength)
-    .reduce((selected, peak) => {
-      const midi = Math.round(12 * Math.log2(peak.frequency / 440) + 69)
-      const alreadyIncluded = selected.some(
-        (item) => Math.abs(item.midi - midi) <= 1 || Math.abs(item.frequency - peak.frequency) < 18,
-      )
-
-      if (alreadyIncluded) {
-        return selected
-      }
-
-      selected.push({
-        midi,
-        frequency: peak.frequency,
-        clarity: Math.min(1, (peak.strength + 72) / 48),
-      })
-
-      return selected
-    }, [])
-    .slice(0, MAX_SIMULTANEOUS_NOTES)
-}
-
 function App() {
   const [instrument, setInstrument] = useState('64')
   const [micState, setMicState] = useState('idle')
   const [detected, setDetected] = useState(null)
-  const [detectedNotes, setDetectedNotes] = useState([])
   const [errorMessage, setErrorMessage] = useState('')
   const [inputLevel, setInputLevel] = useState(0)
-  const [octaveMode, setOctaveMode] = useState(false)
   const [audioInputs, setAudioInputs] = useState([])
   const [selectedInputId, setSelectedInputId] = useState('default')
   const [activeInputLabel, setActiveInputLabel] = useState('Sin dispositivo')
+  const [selectedKey, setSelectedKey] = useState(0)
   const audioContextRef = useRef(null)
   const analyserRef = useRef(null)
   const detectorRef = useRef(null)
   const dataRef = useRef(null)
-  const frequencyDataRef = useRef(null)
   const streamRef = useRef(null)
   const rafRef = useRef(0)
   const pendingDetectionRef = useRef(null)
@@ -336,12 +277,10 @@ function App() {
     analyserRef.current = null
     detectorRef.current = null
     dataRef.current = null
-    frequencyDataRef.current = null
     pendingDetectionRef.current = null
     lastConfirmedAtRef.current = 0
     lastPositionsRef.current = []
     setDetected(null)
-    setDetectedNotes([])
     setInputLevel(0)
     setActiveInputLabel('Sin dispositivo')
     setMicState('idle')
@@ -356,7 +295,6 @@ function App() {
   function analyseFrame() {
     const analyser = analyserRef.current
     const data = dataRef.current
-    const frequencyData = frequencyDataRef.current
     const audioContext = audioContextRef.current
     if (!analyser || !data || !audioContext) {
       return
@@ -368,93 +306,52 @@ function App() {
 
     const now = audioContext.currentTime * 1000
 
-    if (octaveMode && frequencyData) {
-      analyser.getFloatFrequencyData(frequencyData)
-      const polyphonic = detectPolyphonicFrequencies(
-        frequencyData,
-        audioContext.sampleRate,
-        analyser.fftSize,
-      )
+    const detector = detectorRef.current
+    const [frequency, clarity] = detector
+      ? detector.findPitch(data, audioContext.sampleRate)
+      : [0, 0]
 
-      if (polyphonic.length > 0 && level >= MIN_LEVEL) {
-        const positions = findBestPositions(
-          layout,
-          polyphonic.map((item) => item.midi),
-          lastPositionsRef.current,
-        )
-        const mapped = polyphonic.map((item, index) => {
-          const pitch = frequencyToNoteData(item.frequency)
-
-          return {
-            note: pitch.note,
-            cents: pitch.cents,
-            frequency: item.frequency,
-            clarity: item.clarity,
-            position: positions[index] ?? null,
-          }
-        })
-
-        lastConfirmedAtRef.current = now
-        lastPositionsRef.current = mapped.map((item) => item.position).filter(Boolean)
-        setDetected(mapped[0] ?? null)
-        setDetectedNotes(mapped)
-      } else if (detectedRef.current && now - lastConfirmedAtRef.current >= RELEASE_MS) {
-        lastPositionsRef.current = []
-        setDetected(null)
-        setDetectedNotes([])
+    if (frequency >= 100 && frequency <= 3000 && clarity >= MIN_CLARITY && level >= MIN_LEVEL) {
+      const pitch = frequencyToNoteData(frequency)
+      const currentCandidate = pendingDetectionRef.current
+      const nextDetection = {
+        ...pitch,
+        frequency,
+        clarity,
+        timestamp: now,
       }
-    } else {
-      const detector = detectorRef.current
-      const [frequency, clarity] = detector
-        ? detector.findPitch(data, audioContext.sampleRate)
-        : [0, 0]
 
-      if (frequency >= 100 && frequency <= 3000 && clarity >= MIN_CLARITY && level >= MIN_LEVEL) {
-        const pitch = frequencyToNoteData(frequency)
-        const currentCandidate = pendingDetectionRef.current
-        const nextDetection = {
-          ...pitch,
+      const sameNote =
+        currentCandidate &&
+        currentCandidate.note.midi === pitch.note.midi &&
+        Math.abs(currentCandidate.cents - pitch.cents) <= MAX_DEVIATION_CENTS
+
+      if (!sameNote) {
+        pendingDetectionRef.current = nextDetection
+      } else if (now - currentCandidate.timestamp >= MIN_SUSTAIN_MS) {
+        const matchedPosition = findBestPosition(
+          layout,
+          pitch.note.midi,
+          lastPositionsRef.current[0] ?? null,
+        )
+
+        pendingDetectionRef.current = nextDetection
+        lastConfirmedAtRef.current = now
+        lastPositionsRef.current = matchedPosition ? [matchedPosition] : []
+        setDetected({
+          note: pitch.note,
+          cents: pitch.cents,
           frequency,
           clarity,
-          timestamp: now,
-        }
+          position: matchedPosition,
+        })
+      }
+    } else {
+      pendingDetectionRef.current = null
 
-        const sameNote =
-          currentCandidate &&
-          currentCandidate.note.midi === pitch.note.midi &&
-          Math.abs(currentCandidate.cents - pitch.cents) <= MAX_DEVIATION_CENTS
-
-        if (!sameNote) {
-          pendingDetectionRef.current = nextDetection
-        } else if (now - currentCandidate.timestamp >= MIN_SUSTAIN_MS) {
-          const matchedPosition = findBestPosition(
-            layout,
-            pitch.note.midi,
-            lastPositionsRef.current[0] ?? null,
-          )
-
-          pendingDetectionRef.current = nextDetection
-          lastConfirmedAtRef.current = now
-          lastPositionsRef.current = matchedPosition ? [matchedPosition] : []
-          const nextDetected = {
-            note: pitch.note,
-            cents: pitch.cents,
-            frequency,
-            clarity,
-            position: matchedPosition,
-          }
-
-          setDetected(nextDetected)
-          setDetectedNotes([nextDetected])
-        }
-      } else {
-        pendingDetectionRef.current = null
-
-        if (detectedRef.current && now - lastConfirmedAtRef.current >= RELEASE_MS) {
-          lastPositionsRef.current = []
-          setDetected(null)
-          setDetectedNotes([])
-        }
+      if (detectedRef.current && now - lastConfirmedAtRef.current >= RELEASE_MS) {
+        lastPositionsRef.current = []
+        setDetected(null)
       }
     }
 
@@ -512,7 +409,6 @@ function App() {
       audioContextRef.current = audioContext
       analyserRef.current = analyser
       dataRef.current = new Float32Array(analyser.fftSize)
-      frequencyDataRef.current = new Float32Array(analyser.frequencyBinCount)
       detectorRef.current = PitchDetector.forFloat32Array(analyser.fftSize)
       if (navigator.mediaDevices?.enumerateDevices) {
         const devices = await navigator.mediaDevices.enumerateDevices()
@@ -556,7 +452,7 @@ function App() {
     }
   }
 
-  const activePositions = detectedNotes.map((item) => item.position).filter(Boolean)
+  const activePositions = detected?.position ? [detected.position] : []
   const holeStates = layout.map((column) => {
     const drawPosition = activePositions.find(
       (position) => position.hole === column.hole && position.tone === 'draw',
@@ -573,100 +469,9 @@ function App() {
   })
 
   const activeSlide = Boolean(detected?.position?.slide)
-  const displayedNotes = detectedNotes.length > 0 ? detectedNotes : detected ? [detected] : []
 
   return (
     <main className="app-shell">
-      <section className="layout-panel">
-        <div className="note-banner">
-          <div className="brand-lockup">
-            <div className="brand-logo" aria-hidden="true">
-              <span></span>
-              <span></span>
-            </div>
-            <div>
-              <p className="brand-kicker">Proyecto</p>
-              <h1 className="brand-title">CromaNota</h1>
-            </div>
-          </div>
-          <div className="note-readout-hero">
-            <div className="note-main">
-              {detected ? detected.note.shortLabel : '...'}
-              {detected?.note.alt ? (
-                <span className="enharmonic">/{detected.note.alt}</span>
-              ) : null}
-            </div>
-            {displayedNotes.length > 1 ? (
-              <div className="detected-chord">
-                {displayedNotes.map((item) => (
-                  <span
-                    key={`${item.note.label}-${item.position?.hole ?? 'na'}`}
-                    className="note-pill"
-                  >
-                    {item.note.shortLabel}
-                    {item.position ? ` · ${item.position.hole}` : ''}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-            <div className="mini-metrics">
-              <strong>{detected ? `${detected.frequency.toFixed(1)} Hz` : '--'}</strong>
-              <strong>{detected ? formatCents(detected.cents) : '--'}</strong>
-              <strong>
-                {detected?.position
-                  ? `${detected.position.tone === 'draw' ? 'Aspirada' : 'Soplada'} · Agujero ${detected.position.hole}`
-                  : '--'}
-              </strong>
-            </div>
-          </div>
-          <p className="mobile-hint">En celular conviene usarla en horizontal.</p>
-        </div>
-        <div className="harmonica-scroll">
-          <div className="harmonica-frame">
-            <div className="harmonica-mouthpiece"></div>
-            <div className="harmonica-body">
-              <div className="holes-row draw-row">
-                <div
-                  className="holes-grid"
-                  style={{ gridTemplateColumns: `repeat(${layout.length}, minmax(44px, 52px))` }}
-                >
-                {layout.map((column, index) => (
-                  <HoleBubble
-                    key={`${column.hole}-draw`}
-                    note={column.draw}
-                    slideNote={column.drawSlide}
-                    mode={holeStates[index].drawMode}
-                    tone="draw"
-                    hole={column.hole}
-                  />
-                ))}
-                </div>
-              </div>
-              <div className="holes-row blow-row">
-                <div
-                  className="holes-grid"
-                  style={{ gridTemplateColumns: `repeat(${layout.length}, minmax(44px, 52px))` }}
-                >
-                {layout.map((column, index) => (
-                  <HoleBubble
-                    key={`${column.hole}-blow`}
-                    note={column.blow}
-                    slideNote={column.blowSlide}
-                    mode={holeStates[index].blowMode}
-                    tone="blow"
-                    hole={column.hole}
-                  />
-                ))}
-                </div>
-              </div>
-            </div>
-            <div className={activeSlide ? 'slider-lever active' : 'slider-lever'}>
-              <div className="slider-knob"></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section className="compact-panel">
         <div className="instrument-toggle" role="tablist" aria-label="Tipo de armonica">
           {Object.entries(TUNINGS).map(([key, value]) => (
@@ -684,13 +489,19 @@ function App() {
           ))}
         </div>
 
-        <button
-          type="button"
-          className={octaveMode ? 'octave-toggle active' : 'octave-toggle'}
-          onClick={() => setOctaveMode((value) => !value)}
-        >
-          Octavas
-        </button>
+        <label className="input-select key-select">
+          <span>Tonalidad</span>
+          <select
+            value={selectedKey}
+            onChange={(event) => setSelectedKey(Number(event.target.value))}
+          >
+            {KEY_OPTIONS.map((key) => (
+              <option key={key.label} value={key.root}>
+                {key.label} mayor
+              </option>
+            ))}
+          </select>
+        </label>
 
         <label className="input-select">
           <span>Mic</span>
@@ -736,33 +547,115 @@ function App() {
         <div className="detector-actions compact-actions">
           {micState === 'listening' ? (
             <button type="button" className="primary-button" onClick={stopListening}>
-              Detener
+              <span className="button-icon" aria-hidden="true">■</span>
+              <span>Detener</span>
             </button>
           ) : (
             <button
               type="button"
               className="primary-button"
-              onClick={startListening}
+              onClick={() => startListening()}
               disabled={micState === 'requesting'}
             >
-              {micState === 'requesting' ? 'Permiso...' : 'Escuchar'}
+              <span className="button-icon" aria-hidden="true">◉</span>
+              <span>{micState === 'requesting' ? 'Permiso...' : 'Escuchar'}</span>
             </button>
           )}
           {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
+        </div>
+      </section>
+
+      <section className="layout-panel">
+        <div className="note-banner">
+          <div className="brand-lockup">
+            <div className="brand-logo" aria-hidden="true">
+              <span></span>
+              <span></span>
+            </div>
+            <div>
+              <p className="brand-kicker">Proyecto</p>
+              <h1 className="brand-title">CromaNota</h1>
+            </div>
+          </div>
+          <div className="note-readout-hero">
+            <div className="note-main">
+              {detected ? detected.note.shortLabel : ''}
+              {detected?.note.alt ? (
+                <span className="enharmonic">/{detected.note.alt}</span>
+              ) : null}
+            </div>
+            <div className="mini-metrics">
+              <strong>{detected ? `${detected.frequency.toFixed(1)} Hz` : ''}</strong>
+              <strong>{detected ? formatCents(detected.cents) : ''}</strong>
+              <strong>
+                {detected?.position
+                  ? `${detected.position.tone === 'draw' ? 'Aspirada' : 'Soplada'} · Agujero ${detected.position.hole}`
+                  : ''}
+              </strong>
+            </div>
+          </div>
+          <p className="mobile-hint">En celular conviene usarla en horizontal.</p>
+        </div>
+        <div className="harmonica-scroll">
+          <div className="harmonica-frame">
+            <div className="harmonica-mouthpiece"></div>
+            <div className="harmonica-body" style={{ '--holes': layout.length }}>
+              <div className="holes-row draw-row">
+                <div
+                  className="holes-grid"
+                  style={{ gridTemplateColumns: `repeat(${layout.length}, minmax(0, 1fr))` }}
+                >
+                {layout.map((column, index) => (
+                  <HoleBubble
+                    key={`${column.hole}-draw`}
+                    note={column.draw}
+                    slideNote={column.drawSlide}
+                    mode={holeStates[index].drawMode}
+                    tone="draw"
+                    hole={column.hole}
+                    showNumber
+                    altered={isScaleAlteration(column.draw, selectedKey)}
+                  />
+                ))}
+                </div>
+              </div>
+              <div className="holes-row blow-row">
+                <div
+                  className="holes-grid"
+                  style={{ gridTemplateColumns: `repeat(${layout.length}, minmax(0, 1fr))` }}
+                >
+                {layout.map((column, index) => (
+                  <HoleBubble
+                    key={`${column.hole}-blow`}
+                    note={column.blow}
+                    slideNote={column.blowSlide}
+                    mode={holeStates[index].blowMode}
+                    tone="blow"
+                    hole={column.hole}
+                    altered={isScaleAlteration(column.blow, selectedKey)}
+                  />
+                ))}
+                </div>
+              </div>
+            </div>
+            <div className={activeSlide ? 'slider-lever active' : 'slider-lever'}>
+              <div className="slider-knob"></div>
+            </div>
+          </div>
         </div>
       </section>
     </main>
   )
 }
 
-function HoleBubble({ note, slideNote, mode, tone, hole }) {
+function HoleBubble({ note, slideNote, mode, tone, hole, showNumber = false, altered = false }) {
   const active = mode !== null
   const isSlide = mode === 'slide'
-  const bubbleClass = `hole-bubble ${tone} ${active ? 'active' : ''} ${isSlide ? 'slide-on' : ''}`.trim()
+  const bubbleClass = `hole-bubble ${tone} ${active ? 'active' : ''} ${isSlide ? 'slide-on' : ''} ${altered ? 'altered' : ''}`.trim()
 
   return (
     <div className={bubbleClass}>
-      <span className="hole-number">{hole}</span>
+      {showNumber ? <span className="hole-number">{hole}</span> : null}
       <strong>{note.shortLabel}</strong>
       {isSlide ? (
         <em className="slide-flag">BTN {slideNote.shortLabel}</em>

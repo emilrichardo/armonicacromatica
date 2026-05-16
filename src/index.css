@@ -1,22 +1,12 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 
 :root {
-  --bg: #f3eadb;
-  --bg-deep: #e4d4ba;
-  --panel-noise:
-    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.45), transparent 24%),
-    radial-gradient(circle at 80% 10%, rgba(187, 101, 51, 0.08), transparent 18%),
-    radial-gradient(circle at 50% 100%, rgba(126, 48, 17, 0.07), transparent 30%);
-  --ink: #26140d;
-  --muted: #725b4f;
-  --accent: #9f4623;
-  --panel-shadow: 0 20px 50px rgba(83, 50, 31, 0.12);
-  --font-sans: 'IBM Plex Sans', sans-serif;
-  --font-display: 'Cormorant Garamond', serif;
+  --ink: #000000;
+  --paper: #ffffff;
+  --font-sans: 'IBM Plex Mono', monospace;
+  --font-display: 'Archivo Black', sans-serif;
   color: var(--ink);
-  background:
-    radial-gradient(circle at top, rgba(255, 253, 249, 0.8), transparent 30%),
-    linear-gradient(180deg, var(--bg), var(--bg-deep));
+  background: var(--paper);
   font-family: var(--font-sans);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -29,7 +19,6 @@
 }
 
 html {
-  scroll-behavior: smooth;
   width: 100%;
   min-height: 100%;
 }
@@ -39,21 +28,7 @@ body {
   width: 100%;
   min-width: 320px;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.75), transparent 24%),
-    linear-gradient(180deg, #f6efe2 0%, #eddec8 100%);
-}
-
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(112, 76, 55, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(112, 76, 55, 0.03) 1px, transparent 1px);
-  background-size: 24px 24px;
-  mask-image: radial-gradient(circle at center, black, transparent 86%);
+  background: var(--paper);
 }
 
 button,
@@ -66,11 +41,11 @@ textarea {
 #root {
   width: 100%;
   min-height: 100vh;
-  padding: clamp(10px, 1.4vw, 24px);
+  padding: clamp(8px, 1vw, 18px);
 }
 
 @media (max-width: 720px) {
   #root {
-    padding: 10px;
+    padding: 8px;
   }
 }
