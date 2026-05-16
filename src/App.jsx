@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { PitchDetector } from 'pitchy'
 import './App.css'
+import {
+  applyLocalizedSeo,
+  buildSoftwareSchema,
+  detectLocale,
+  getTranslator,
+} from './i18n'
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 const ENHARMONIC_LABELS = {
@@ -113,12 +119,12 @@ function frequencyToNoteData(frequency) {
   }
 }
 
-function formatCents(cents) {
+function formatCents(cents, t) {
   if (cents === 0) {
-    return 'afinada'
+    return t('tuned')
   }
 
-  return `${cents > 0 ? '+' : ''}${cents} cents`
+  return `${cents > 0 ? '+' : ''}${cents} ${t('cents')}`
 }
 
 function getPreferredInputId(inputs) {
@@ -135,9 +141,9 @@ function getPreferredInputId(inputs) {
   return preferred?.deviceId ?? realInputs[0].deviceId
 }
 
-function describeAudioError(error) {
+function describeAudioError(error, t) {
   if (!(error instanceof Error)) {
-    return 'No se pudo acceder al micrófono.'
+    return t('noMicAccess')
   }
 
   const name = 'name' in error ? error.name : 'Error'
@@ -248,6 +254,10 @@ function findBestPosition(layout, midi, previousPosition) {
 }
 
 function App() {
+  const [locale] = useState(() =>
+    detectLocale(navigator.languages ?? [navigator.language].filter(Boolean)),
+  )
+  const t = getTranslator(locale)
   const [instrument, setInstrument] = useState('64')
   const [micState, setMicState] = useState('idle')
   const [detected, setDetected] = useState(null)
@@ -255,7 +265,7 @@ function App() {
   const [inputLevel, setInputLevel] = useState(0)
   const [audioInputs, setAudioInputs] = useState([])
   const [selectedInputId, setSelectedInputId] = useState('default')
-  const [activeInputLabel, setActiveInputLabel] = useState('Sin dispositivo')
+  const [activeInputLabel, setActiveInputLabel] = useState(t('noDevice'))
   const [selectedKey, setSelectedKey] = useState(0)
   const [theme, setTheme] = useState(() => {
     const savedTheme = window.localStorage.getItem('cromanota-theme')
@@ -279,6 +289,22 @@ function App() {
 
   const tuning = TUNINGS[instrument]
   const layout = buildLayout(tuning)
+
+  useEffect(() => {
+    applyLocalizedSeo(locale)
+
+    const schemaId = 'cromanota-software-schema'
+    let schema = document.getElementById(schemaId)
+
+    if (!schema) {
+      schema = document.createElement('script')
+      schema.id = schemaId
+      schema.type = 'application/ld+json'
+      document.head.appendChild(schema)
+    }
+
+    schema.textContent = JSON.stringify(buildSoftwareSchema(locale))
+  }, [locale])
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -337,7 +363,7 @@ function App() {
     lastPositionsRef.current = []
     setDetected(null)
     setInputLevel(0)
-    setActiveInputLabel('Sin dispositivo')
+    setActiveInputLabel(t('noDevice'))
     setMicState('idle')
   }
 
@@ -345,6 +371,8 @@ function App() {
     return () => {
       stopListening()
     }
+    // The cleanup only needs the refs from this mounted instance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function analyseFrame() {
@@ -420,7 +448,7 @@ function App() {
       setMicState('requesting')
 
       if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error('Este navegador no expone getUserMedia para el microfono.')
+        throw new Error(t('unsupportedMic'))
       }
 
       const baseAudioConfig = {
@@ -446,7 +474,7 @@ function App() {
           audio: baseAudioConfig,
         })
 
-        setErrorMessage(`Fallback al micrófono por defecto tras error: ${describeAudioError(deviceError)}`)
+        setErrorMessage(`${t('fallbackMic')} ${describeAudioError(deviceError, t)}`)
       }
 
       const audioContext = new window.AudioContext({ latencyHint: 'interactive' })
@@ -460,7 +488,7 @@ function App() {
 
       streamRef.current = stream
       const activeTrack = stream.getAudioTracks()[0]
-      setActiveInputLabel(activeTrack?.label || 'Micrófono activo')
+      setActiveInputLabel(activeTrack?.label || t('activeMic'))
       audioContextRef.current = audioContext
       analyserRef.current = analyser
       dataRef.current = new Float32Array(analyser.fftSize)
@@ -490,7 +518,7 @@ function App() {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : 'No se pudo acceder al micrófono.',
+          : t('noMicAccess'),
       )
     }
   }
@@ -540,34 +568,34 @@ function App() {
 
   return (
     <main className="app-shell">
-      <nav className="top-nav" aria-label="Controles principales">
+      <nav className="top-nav" aria-label={t('mainControls')}>
         <div className="brand-lockup">
           <div className="brand-logo" aria-hidden="true">
             <span></span>
             <span></span>
           </div>
           <div>
-            <p className="brand-kicker">Proyecto</p>
+            <p className="brand-kicker">{t('project')}</p>
             <h1 className="brand-title">CromaNota</h1>
           </div>
         </div>
 
         <div className="nav-controls">
           <label className="input-select key-select">
-            <span>Tonalidad</span>
+            <span>{t('key')}</span>
             <select
               value={selectedKey}
               onChange={(event) => setSelectedKey(Number(event.target.value))}
             >
               {KEY_OPTIONS.map((key) => (
                 <option key={key.label} value={key.root}>
-                  {key.label} mayor
+                  {key.label} {t('major')}
                 </option>
               ))}
             </select>
           </label>
 
-          <div className="instrument-toggle" role="tablist" aria-label="Tipo de armonica">
+          <div className="instrument-toggle" role="tablist" aria-label={t('harmonicaType')}>
             {Object.entries(TUNINGS).map(([key, value]) => (
               <button
                 key={key}
@@ -577,8 +605,8 @@ function App() {
                 className={instrument === key ? 'toggle-chip active' : 'toggle-chip'}
                 onClick={() => setInstrument(key)}
               >
-                <span>{value.label}</span>
-                <small>{value.holes} agujeros</small>
+                <span>{value.reeds} {t('voices')}</span>
+                <small>{value.holes} {t('holes')}</small>
               </button>
             ))}
           </div>
@@ -588,33 +616,37 @@ function App() {
           type="button"
           className="theme-toggle"
           onClick={() => setTheme((currentTheme) => (currentTheme === 'dark' ? 'light' : 'dark'))}
-          aria-label={theme === 'dark' ? 'Activar modo claro' : 'Activar modo oscuro'}
+          aria-label={theme === 'dark' ? t('enableLight') : t('enableDark')}
         >
           <span aria-hidden="true">{theme === 'dark' ? '☼' : '●'}</span>
-          <span>{theme === 'dark' ? 'Claro' : 'Dark'}</span>
+          <span>{theme === 'dark' ? t('light') : t('dark')}</span>
         </button>
       </nav>
 
       <section className="layout-panel">
         <div className="orientation-prompt" role="status">
           <span className="phone-rotate" aria-hidden="true"></span>
-          <strong>Gira la pantalla</strong>
-          <span>Usala horizontal para ver la armonica completa.</span>
+          <strong>{t('rotateTitle')}</strong>
+          <span>{t('rotateDescription')}</span>
         </div>
 
         <header className="app-intro">
-          <p className="intro-kicker">Detector cromático en vivo</p>
-          <h2>CromaNota escucha tu armonica</h2>
-          <p>Visualiza la celda exacta, el uso de palanca y las alteraciones segun la tonalidad.</p>
+          <p className="intro-kicker">{t('introKicker')}</p>
+          <h2>{t('introTitle')}</h2>
+          <p>{t('introDescription')}</p>
           <small>
-            Desarrollado por Emil Gonzalez ·{' '}
+            {t('developedBy')} ·{' '}
             <a className="contact-link" href="mailto:emilrichardo@gmail.com">
               emilrichardo@gmail.com
             </a>
           </small>
         </header>
 
-        <div className="note-readout-hero layout-note-readout" aria-live="polite">
+        <div
+          className="note-readout-hero layout-note-readout"
+          aria-label={t('liveRegionLabel')}
+          aria-live="polite"
+        >
           <div className="note-main">
             {detected ? detected.note.shortLabel : ''}
             {detected?.note.alt ? (
@@ -623,10 +655,10 @@ function App() {
           </div>
           <div className="mini-metrics">
             <strong>{detected ? `${detected.frequency.toFixed(1)} Hz` : ''}</strong>
-            <strong>{detected ? formatCents(detected.cents) : ''}</strong>
+            <strong>{detected ? formatCents(detected.cents, t) : ''}</strong>
             <strong>
               {detected?.position
-                ? `${detected.position.tone === 'draw' ? 'Aspirada' : 'Soplada'} · Agujero ${detected.position.hole}`
+                ? `${detected.position.tone === 'draw' ? t('draw') : t('blow')} · ${t('hole')} ${detected.position.hole}`
                 : ''}
             </strong>
           </div>
@@ -690,18 +722,18 @@ function App() {
 
       <section className="detector-footer">
         <label className="input-select">
-          <span>Mic</span>
+          <span>{t('mic')}</span>
           <select
             value={selectedInputId}
             onChange={handleInputChange}
             disabled={micState === 'requesting'}
           >
-            <option value="default">Micrófono por defecto</option>
+            <option value="default">{t('defaultMic')}</option>
             {audioInputs
               .filter((device) => device.deviceId && device.deviceId !== 'default')
               .map((device, index) => (
                 <option key={device.deviceId || `device-${index}`} value={device.deviceId || 'default'}>
-                  {device.label || `Micrófono ${index + 1}`}
+                  {device.label || `${t('mic')} ${index + 1}`}
                 </option>
               ))}
           </select>
@@ -723,10 +755,10 @@ function App() {
         <div className="detector-topline">
           <span className={`status-dot status-${micState}`}></span>
           <span>
-            {micState === 'listening' && 'Escuchando'}
-            {micState === 'requesting' && 'Pidiendo permiso'}
-            {micState === 'idle' && 'Microfono apagado'}
-            {micState === 'error' && 'Error'}
+            {micState === 'listening' && t('listening')}
+            {micState === 'requesting' && t('requesting')}
+            {micState === 'idle' && t('idle')}
+            {micState === 'error' && t('error')}
           </span>
         </div>
 
@@ -734,7 +766,7 @@ function App() {
           {micState === 'listening' ? (
             <button type="button" className="primary-button" onClick={stopListening}>
               <span className="button-icon" aria-hidden="true">■</span>
-              <span>Detener</span>
+              <span>{t('stop')}</span>
             </button>
           ) : (
             <button
@@ -744,7 +776,7 @@ function App() {
               disabled={micState === 'requesting'}
             >
               <span className="button-icon" aria-hidden="true">◉</span>
-              <span>{micState === 'requesting' ? 'Permiso...' : 'Escuchar'}</span>
+              <span>{micState === 'requesting' ? t('permission') : t('listen')}</span>
             </button>
           )}
           {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
