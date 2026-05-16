@@ -156,7 +156,7 @@
 
 .note-readout-hero {
   display: grid;
-  grid-template-columns: auto;
+  grid-template-columns: auto auto;
   gap: 0.75rem;
   align-items: center;
   justify-content: center;
@@ -165,6 +165,7 @@
 
 .nav-note-readout {
   justify-self: center;
+  min-width: clamp(270px, 30vw, 390px);
 }
 
 .note-main {
@@ -196,19 +197,20 @@
 
 .mini-metrics {
   display: grid;
-  grid-template-columns: repeat(3, auto);
-  gap: 0.4rem;
+  grid-template-columns: 1fr;
+  gap: 0.22rem;
   min-width: 0;
   color: var(--muted);
-  font-size: clamp(0.68rem, 0.9vw, 0.8rem);
+  font-size: clamp(0.58rem, 0.72vw, 0.68rem);
   font-weight: 900;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
 .mini-metrics strong {
-  min-height: 1.55rem;
-  padding: 0.24rem 0.58rem;
+  min-width: 142px;
+  min-height: 1.16rem;
+  padding: 0.16rem 0.42rem;
   border-radius: 16px;
   background: var(--control);
 }
@@ -555,36 +557,146 @@
 
 @media (max-width: 680px) {
   .app-shell {
-    padding-bottom: 260px;
+    gap: 0.45rem;
+    padding-bottom: 76px;
   }
 
   .top-nav {
-    gap: 0.65rem;
+    display: flex;
+    gap: 0.38rem;
+    align-items: center;
+    justify-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    height: 52px;
+    min-height: 52px;
+    padding: 0.32rem 0.38rem;
+    scrollbar-width: none;
+  }
+
+  .top-nav::-webkit-scrollbar {
+    display: none;
   }
 
   .brand-lockup {
-    justify-content: center;
+    flex: 0 0 auto;
+    justify-content: flex-start;
+    gap: 0.38rem;
+  }
+
+  .brand-lockup > div:last-child {
+    display: none;
+  }
+
+  .brand-logo {
+    width: 24px;
+    height: 24px;
+    grid-template-columns: repeat(2, 6px);
+    gap: 3px;
+    border-radius: 8px;
+  }
+
+  .brand-logo span {
+    width: 6px;
+    height: 6px;
+  }
+
+  .brand-kicker {
+    display: none;
+  }
+
+  .brand-title {
+    font-size: 1rem;
+    letter-spacing: -0.04em;
+  }
+
+  .nav-note-readout {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 0.34rem;
+    min-width: 112px;
+    justify-content: flex-start;
+  }
+
+  .note-main {
+    min-width: 42px;
+    min-height: 36px;
+    padding: 0.1rem 0.28rem;
+    border-radius: 12px;
+    font-size: 1.35rem;
+  }
+
+  .enharmonic {
+    font-size: 0.52rem;
+  }
+
+  .nav-note-readout .mini-metrics {
+    gap: 0.08rem;
+    font-size: 0.43rem;
+    letter-spacing: 0.02em;
+  }
+
+  .nav-note-readout .mini-metrics strong {
+    min-width: 62px;
+    min-height: 0.68rem;
+    padding: 0;
+    background: transparent;
+    line-height: 1;
   }
 
   .nav-controls {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex: 0 0 auto;
+    gap: 0.34rem;
+    align-items: center;
+    width: auto;
   }
 
   .instrument-toggle {
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    gap: 0.28rem;
+  }
+
+  .input-select {
+    gap: 0;
+  }
+
+  .top-nav .input-select span {
+    display: none;
+  }
+
+  .top-nav .input-select select {
+    width: 76px;
+    padding: 0.42rem 0.48rem;
+    border-radius: 12px;
+    font-size: 0.72rem;
+  }
+
+  .toggle-chip {
+    width: 42px;
+    min-height: 34px;
+    padding: 0.36rem 0.42rem;
+    border-radius: 12px;
+    align-content: center;
+    text-align: center;
+  }
+
+  .toggle-chip span {
+    font-size: 0.58rem;
+    line-height: 1;
+  }
+
+  .toggle-chip small {
+    display: none;
   }
 
   .layout-panel {
     min-height: 0;
+    align-content: center;
     padding: 0.8rem 0.6rem;
   }
 
   .note-readout-hero {
-    grid-template-columns: 1fr;
-    justify-items: center;
-  }
-
-  .mini-metrics {
     grid-template-columns: 1fr;
     justify-items: center;
   }
@@ -624,15 +736,78 @@
   }
 
   .detector-footer {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) 54px 26px 108px;
+    gap: 0.32rem;
+    align-items: center;
+    padding: 0.38rem;
+    overflow: hidden;
+  }
+
+  .detector-footer .input-select {
+    gap: 0;
+  }
+
+  .detector-footer .input-select span {
+    display: none;
+  }
+
+  .detector-footer .input-select select {
+    max-width: none;
+    padding: 0.46rem 0.52rem;
+    border-radius: 12px;
+    font-size: 0.72rem;
+  }
+
+  .level-panel {
+    gap: 0.18rem;
+  }
+
+  .level-labels {
+    justify-content: flex-end;
+    font-size: 0.58rem;
+    letter-spacing: 0;
+  }
+
+  .level-labels span {
+    display: none;
+  }
+
+  .level-meter {
+    height: 7px;
+  }
+
+  .detector-topline {
+    min-height: 34px;
+    padding: 0;
+    border-radius: 12px;
+    background: transparent;
+  }
+
+  .detector-topline span:last-child {
+    display: none;
+  }
+
+  .status-dot {
+    width: 0.74rem;
+    height: 0.74rem;
   }
 
   .detector-actions {
     grid-column: auto;
+    min-width: 0;
   }
 
   .primary-button {
-    min-height: 68px;
-    font-size: 1.14rem;
+    min-height: 42px;
+    padding: 0.52rem 0.62rem;
+    border-radius: 12px;
+    font-size: 0.76rem;
+    gap: 0.36rem;
+  }
+
+  .button-icon {
+    width: 1.1rem;
+    height: 1.1rem;
+    font-size: 0.58rem;
   }
 }

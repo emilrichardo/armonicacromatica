@@ -510,6 +510,15 @@ function App() {
               <span className="enharmonic">/{detected.note.alt}</span>
             ) : null}
           </div>
+          <div className="mini-metrics">
+            <strong>{detected ? `${detected.frequency.toFixed(1)} Hz` : ''}</strong>
+            <strong>{detected ? formatCents(detected.cents) : ''}</strong>
+            <strong>
+              {detected?.position
+                ? `${detected.position.tone === 'draw' ? 'Aspirada' : 'Soplada'} · Agujero ${detected.position.hole}`
+                : ''}
+            </strong>
+          </div>
         </div>
 
         <div className="nav-controls">
@@ -546,18 +555,6 @@ function App() {
       </nav>
 
       <section className="layout-panel">
-        {detected ? (
-          <div className="mini-metrics">
-            <strong>{detected.frequency.toFixed(1)} Hz</strong>
-            <strong>{formatCents(detected.cents)}</strong>
-            <strong>
-              {detected.position
-                ? `${detected.position.tone === 'draw' ? 'Aspirada' : 'Soplada'} · Agujero ${detected.position.hole}`
-                : ''}
-            </strong>
-          </div>
-        ) : null}
-
         <div className="harmonica-scroll">
           <div className="harmonica-frame">
             <div className="harmonica-mouthpiece"></div>
