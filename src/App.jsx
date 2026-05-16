@@ -606,7 +606,12 @@ function App() {
           <p className="intro-kicker">Detector cromático en vivo</p>
           <h2>CromaNota escucha tu armonica</h2>
           <p>Visualiza la celda exacta, el uso de palanca y las alteraciones segun la tonalidad.</p>
-          <small>Desarrollado por Emil Gonzalez</small>
+          <small>
+            Desarrollado por Emil Gonzalez ·{' '}
+            <a className="contact-link" href="mailto:emilrichardo@gmail.com">
+              emilrichardo@gmail.com
+            </a>
+          </small>
         </header>
 
         <div className="note-readout-hero layout-note-readout" aria-live="polite">
