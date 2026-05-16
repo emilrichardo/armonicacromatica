@@ -491,21 +491,16 @@ function App() {
 
   return (
     <main className="app-shell">
-      <section className="compact-panel">
-        <div className="instrument-toggle" role="tablist" aria-label="Tipo de armonica">
-          {Object.entries(TUNINGS).map(([key, value]) => (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              aria-selected={instrument === key}
-              className={instrument === key ? 'toggle-chip active' : 'toggle-chip'}
-              onClick={() => setInstrument(key)}
-            >
-              <span>{value.label}</span>
-              <small>{value.holes} agujeros</small>
-            </button>
-          ))}
+      <nav className="top-nav" aria-label="Controles principales">
+        <div className="brand-lockup">
+          <div className="brand-logo" aria-hidden="true">
+            <span></span>
+            <span></span>
+          </div>
+          <div>
+            <p className="brand-kicker">Proyecto</p>
+            <h1 className="brand-title">CromaNota</h1>
+          </div>
         </div>
 
         <label className="input-select key-select">
@@ -522,6 +517,94 @@ function App() {
           </select>
         </label>
 
+        <div className="instrument-toggle" role="tablist" aria-label="Tipo de armonica">
+          {Object.entries(TUNINGS).map(([key, value]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={instrument === key}
+              className={instrument === key ? 'toggle-chip active' : 'toggle-chip'}
+              onClick={() => setInstrument(key)}
+            >
+              <span>{value.label}</span>
+              <small>{value.holes} agujeros</small>
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      <section className="layout-panel">
+        {detected ? (
+          <div className="note-readout-hero">
+            <div className="note-main">
+              {detected.note.shortLabel}
+              {detected.note.alt ? (
+                <span className="enharmonic">/{detected.note.alt}</span>
+              ) : null}
+            </div>
+            <div className="mini-metrics">
+              <strong>{detected.frequency.toFixed(1)} Hz</strong>
+              <strong>{formatCents(detected.cents)}</strong>
+              <strong>
+                {detected.position
+                  ? `${detected.position.tone === 'draw' ? 'Aspirada' : 'Soplada'} · Agujero ${detected.position.hole}`
+                  : ''}
+              </strong>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="harmonica-scroll">
+          <div className="harmonica-frame">
+            <div className="harmonica-mouthpiece"></div>
+            <div className="harmonica-body" style={{ '--holes': layout.length }}>
+              <div className="holes-row draw-row">
+                <div
+                  className="holes-grid"
+                  style={{ gridTemplateColumns: `repeat(${layout.length}, minmax(0, 1fr))` }}
+                >
+                {layout.map((column, index) => (
+                  <HoleBubble
+                    key={`${column.hole}-draw`}
+                    note={column.draw}
+                    slideNote={column.drawSlide}
+                    mode={holeStates[index].drawMode}
+                    tone="draw"
+                    hole={column.hole}
+                    showNumber
+                    altered={isScaleAlteration(column.draw, selectedKey)}
+                  />
+                ))}
+                </div>
+              </div>
+              <div className="holes-row blow-row">
+                <div
+                  className="holes-grid"
+                  style={{ gridTemplateColumns: `repeat(${layout.length}, minmax(0, 1fr))` }}
+                >
+                {layout.map((column, index) => (
+                  <HoleBubble
+                    key={`${column.hole}-blow`}
+                    note={column.blow}
+                    slideNote={column.blowSlide}
+                    mode={holeStates[index].blowMode}
+                    tone="blow"
+                    hole={column.hole}
+                    altered={isScaleAlteration(column.blow, selectedKey)}
+                  />
+                ))}
+                </div>
+              </div>
+            </div>
+            <div className={activeSlide ? 'slider-lever active' : 'slider-lever'}>
+              <div className="slider-knob"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="detector-footer">
         <label className="input-select">
           <span>Mic</span>
           <select
@@ -581,86 +664,6 @@ function App() {
             </button>
           )}
           {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
-        </div>
-      </section>
-
-      <section className="layout-panel">
-        <div className="note-banner">
-          <div className="brand-lockup">
-            <div className="brand-logo" aria-hidden="true">
-              <span></span>
-              <span></span>
-            </div>
-            <div>
-              <p className="brand-kicker">Proyecto</p>
-              <h1 className="brand-title">CromaNota</h1>
-            </div>
-          </div>
-          <div className="note-readout-hero">
-            <div className="note-main">
-              {detected ? detected.note.shortLabel : ''}
-              {detected?.note.alt ? (
-                <span className="enharmonic">/{detected.note.alt}</span>
-              ) : null}
-            </div>
-            <div className="mini-metrics">
-              <strong>{detected ? `${detected.frequency.toFixed(1)} Hz` : ''}</strong>
-              <strong>{detected ? formatCents(detected.cents) : ''}</strong>
-              <strong>
-                {detected?.position
-                  ? `${detected.position.tone === 'draw' ? 'Aspirada' : 'Soplada'} · Agujero ${detected.position.hole}`
-                  : ''}
-              </strong>
-            </div>
-          </div>
-          <p className="mobile-hint">En celular conviene usarla en horizontal.</p>
-        </div>
-        <div className="harmonica-scroll">
-          <div className="harmonica-frame">
-            <div className="harmonica-mouthpiece"></div>
-            <div className="harmonica-body" style={{ '--holes': layout.length }}>
-              <div className="holes-row draw-row">
-                <div
-                  className="holes-grid"
-                  style={{ gridTemplateColumns: `repeat(${layout.length}, minmax(0, 1fr))` }}
-                >
-                {layout.map((column, index) => (
-                  <HoleBubble
-                    key={`${column.hole}-draw`}
-                    note={column.draw}
-                    slideNote={column.drawSlide}
-                    mode={holeStates[index].drawMode}
-                    tone="draw"
-                    hole={column.hole}
-                    showNumber
-                    altered={isScaleAlteration(column.draw, selectedKey)}
-                  />
-                ))}
-                </div>
-              </div>
-              <div className="holes-row blow-row">
-                <div
-                  className="holes-grid"
-                  style={{ gridTemplateColumns: `repeat(${layout.length}, minmax(0, 1fr))` }}
-                >
-                {layout.map((column, index) => (
-                  <HoleBubble
-                    key={`${column.hole}-blow`}
-                    note={column.blow}
-                    slideNote={column.blowSlide}
-                    mode={holeStates[index].blowMode}
-                    tone="blow"
-                    hole={column.hole}
-                    altered={isScaleAlteration(column.blow, selectedKey)}
-                  />
-                ))}
-                </div>
-              </div>
-            </div>
-            <div className={activeSlide ? 'slider-lever active' : 'slider-lever'}>
-              <div className="slider-knob"></div>
-            </div>
-          </div>
         </div>
       </section>
     </main>
