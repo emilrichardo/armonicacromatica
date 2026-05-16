@@ -602,6 +602,13 @@ function App() {
           <span>Usala horizontal para ver la armonica completa.</span>
         </div>
 
+        <header className="app-intro">
+          <p className="intro-kicker">Detector cromático en vivo</p>
+          <h2>CromaNota escucha tu armonica</h2>
+          <p>Visualiza la celda exacta, el uso de palanca y las alteraciones segun la tonalidad.</p>
+          <small>Desarrollado por Emil Gonzalez</small>
+        </header>
+
         <div className="note-readout-hero layout-note-readout" aria-live="polite">
           <div className="note-main">
             {detected ? detected.note.shortLabel : ''}
