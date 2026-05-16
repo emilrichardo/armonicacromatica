@@ -1214,3 +1214,244 @@
     grid-row: span 2;
   }
 }
+
+@media (max-width: 980px) {
+  .app-shell {
+    grid-template-rows: auto minmax(0, 1fr);
+    min-height: calc(100svh - 16px);
+  }
+
+  .top-nav {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 0.32rem;
+    height: 46px;
+    min-height: 46px;
+    padding: 0.22rem 0.32rem;
+  }
+
+  .brand-lockup {
+    align-self: start;
+  }
+
+  .brand-logo {
+    width: 26px;
+    height: 26px;
+    border-radius: 9px;
+  }
+
+  .nav-controls {
+    justify-self: end;
+    align-self: start;
+    align-items: start;
+  }
+
+  .top-nav .input-select select,
+  .toggle-chip {
+    height: 38px;
+    min-height: 38px;
+  }
+
+  .top-nav .input-select select {
+    width: 92px;
+    padding: 0 0.42rem;
+  }
+
+  .toggle-chip {
+    width: 46px;
+    padding: 0.2rem 0.34rem;
+  }
+
+  .theme-toggle {
+    align-self: start;
+    width: 32px;
+    min-height: 38px;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .theme-toggle span:first-child {
+    width: auto;
+    height: auto;
+    border-radius: 0;
+    background: transparent;
+    color: var(--accent);
+    font-size: 1.28rem;
+  }
+
+  .theme-toggle:hover {
+    transform: none;
+  }
+
+  .layout-panel {
+    grid-template-areas:
+      'readout'
+      'harmonica'
+      'intro';
+  }
+
+  .layout-note-readout {
+    grid-area: readout;
+  }
+
+  .harmonica-scroll {
+    grid-area: harmonica;
+  }
+
+  .app-intro {
+    grid-area: intro;
+  }
+
+  .app-intro p:not(.intro-kicker) {
+    display: none;
+  }
+}
+
+@media (max-width: 680px) {
+  .app-shell {
+    gap: 0.34rem;
+    min-height: calc(100svh - 16px);
+    padding-bottom: 74px;
+  }
+
+  .top-nav {
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .layout-panel {
+    position: relative;
+    grid-template-areas:
+      'readout'
+      'harmonica'
+      'intro';
+    grid-template-rows: minmax(44px, auto) auto minmax(58px, auto);
+    gap: 0.48rem;
+    align-content: center;
+    min-height: calc(100svh - 16px - 44px - 74px - 0.7rem);
+    padding: 0.52rem 0.44rem;
+  }
+
+  .orientation-prompt {
+    position: absolute;
+    top: clamp(0.7rem, 4vh, 1.3rem);
+    left: 50%;
+    z-index: 2;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: calc(100% - 1.4rem);
+  }
+
+  .app-intro {
+    margin-top: 0.38rem;
+    min-height: 48px;
+  }
+
+  .app-intro p:not(.intro-kicker) {
+    display: none;
+  }
+
+  .app-intro h2 {
+    max-width: 330px;
+  }
+
+  .harmonica-frame {
+    position: relative;
+    grid-template-areas: 'body';
+    padding-bottom: 26px;
+  }
+
+  .harmonica-body {
+    border-radius: 18px;
+  }
+
+  .slider-lever {
+    --travel: 58px;
+    position: absolute;
+    right: clamp(16px, 6vw, 28px);
+    bottom: 0;
+    justify-self: auto;
+    width: 96px;
+    height: 28px;
+    border-radius: 0 0 14px 14px;
+  }
+
+  .slider-lever::before {
+    left: 12px;
+    right: 12px;
+    height: 3px;
+  }
+
+  .slider-knob {
+    right: 4px;
+    width: 24px;
+    height: 24px;
+  }
+}
+
+@media (max-width: 980px) and (max-height: 520px) {
+  .app-shell {
+    gap: 0.28rem;
+    padding-bottom: 58px;
+  }
+
+  .layout-panel {
+    gap: 0.22rem;
+    align-content: center;
+    min-height: calc(100svh - 16px - 46px - 58px - 0.6rem);
+    padding: 0.35rem 0.45rem;
+  }
+
+  .layout-note-readout {
+    min-height: 34px;
+  }
+
+  .note-main {
+    min-width: 50px;
+    min-height: 32px;
+    font-size: 1.2rem;
+  }
+
+  .layout-note-readout .mini-metrics {
+    font-size: 0.46rem;
+  }
+
+  .layout-note-readout .mini-metrics strong {
+    min-height: 0.72rem;
+    padding: 0.04rem 0.24rem;
+  }
+
+  .app-intro {
+    gap: 0.02rem;
+    min-height: 40px;
+    margin-top: 0.16rem;
+  }
+
+  .intro-kicker,
+  .app-intro small {
+    font-size: 0.43rem;
+  }
+
+  .app-intro h2 {
+    font-size: clamp(0.86rem, 2.8vw, 1.25rem);
+  }
+
+  .harmonica-body {
+    gap: 0.36rem;
+    padding: 0.62rem 0.54rem;
+  }
+
+  .hole-bubble {
+    border-width: 1.5px;
+  }
+
+  .hole-bubble strong {
+    font-size: clamp(0.72rem, 2vw, 1rem);
+  }
+
+  .hole-number {
+    top: -0.62rem;
+  }
+}
