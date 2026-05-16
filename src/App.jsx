@@ -164,6 +164,8 @@ function buildCandidates(layout, midi) {
           tone: option.tone,
           slide: option.slide,
           note: option.note,
+          blowName: column.blow.name,
+          drawName: column.draw.name,
         })
       }
     })
@@ -172,8 +174,25 @@ function buildCandidates(layout, midi) {
   return candidates
 }
 
+function preferDoReCell(candidates, midi) {
+  const noteName = NOTE_NAMES[((midi % 12) + 12) % 12]
+
+  if (noteName !== 'C' && noteName !== 'C#') {
+    return candidates
+  }
+
+  const doReCandidates = candidates.filter(
+    (candidate) =>
+      candidate.tone === 'blow' &&
+      candidate.blowName === 'C' &&
+      candidate.drawName === 'D',
+  )
+
+  return doReCandidates.length > 0 ? doReCandidates : candidates
+}
+
 function findBestPosition(layout, midi, previousPosition) {
-  const candidates = buildCandidates(layout, midi)
+  const candidates = preferDoReCell(buildCandidates(layout, midi), midi)
 
   if (candidates.length === 0) {
     return null
