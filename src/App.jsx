@@ -191,8 +191,30 @@ function preferDoReCell(candidates, midi) {
   return doReCandidates.length > 0 ? doReCandidates : candidates
 }
 
+function preferSiCellForDoSharp(candidates, midi, previousPosition) {
+  const noteName = NOTE_NAMES[((midi % 12) + 12) % 12]
+
+  if (noteName !== 'C#' || previousPosition?.note?.name !== 'B') {
+    return candidates
+  }
+
+  const sameHoleCandidates = candidates.filter(
+    (candidate) =>
+      candidate.hole === previousPosition.hole &&
+      candidate.tone === 'blow' &&
+      candidate.slide,
+  )
+
+  return sameHoleCandidates.length > 0 ? sameHoleCandidates : candidates
+}
+
 function findBestPosition(layout, midi, previousPosition) {
-  const candidates = preferDoReCell(buildCandidates(layout, midi), midi)
+  const rawCandidates = buildCandidates(layout, midi)
+  const contextualCandidates = preferSiCellForDoSharp(rawCandidates, midi, previousPosition)
+  const candidates =
+    contextualCandidates === rawCandidates
+      ? preferDoReCell(rawCandidates, midi)
+      : contextualCandidates
 
   if (candidates.length === 0) {
     return null
