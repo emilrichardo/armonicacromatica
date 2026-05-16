@@ -352,26 +352,17 @@
   top: -0.78rem;
   left: 50%;
   min-width: 1rem;
-  padding: 0.03rem 0.18rem;
+  padding: 0;
   transform: translateX(-50%);
-  border-radius: 999px;
-  background: var(--paper);
   color: var(--muted);
   font-size: clamp(0.42rem, 1vw, 0.56rem);
   font-weight: 900;
   line-height: 1;
 }
 
-.hole-number.low-hole::before {
-  content: '';
-  position: absolute;
-  top: -0.42rem;
-  left: 50%;
-  width: 0.28rem;
-  height: 0.28rem;
-  transform: translateX(-50%);
-  border-radius: 999px;
-  background: var(--ink);
+.hole-number.low-hole {
+  color: color-mix(in srgb, var(--muted) 62%, transparent);
+  font-size: clamp(0.36rem, 0.85vw, 0.48rem);
 }
 
 .slide-flag {
