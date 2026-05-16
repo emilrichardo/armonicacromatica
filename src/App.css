@@ -485,6 +485,10 @@
 .hole-bubble.slide-on {
   background: var(--ink);
   color: var(--paper);
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 5px rgba(154, 111, 69, 0.24),
+    0 10px 20px rgba(28, 25, 20, 0.16);
 }
 
 .hole-number {
