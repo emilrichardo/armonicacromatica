@@ -15,7 +15,7 @@
 
 .top-nav {
   display: grid;
-  grid-template-columns: minmax(160px, 0.9fr) auto minmax(330px, 1fr) auto;
+  grid-template-columns: minmax(160px, 1fr) minmax(330px, auto) auto;
   gap: clamp(0.65rem, 1.2vw, 1rem);
   align-items: center;
   padding: 0.42rem clamp(0.65rem, 1vw, 0.9rem) 0.58rem;
@@ -195,6 +195,50 @@
 .nav-note-readout {
   justify-self: center;
   min-width: clamp(270px, 30vw, 390px);
+}
+
+.layout-note-readout {
+  min-height: clamp(64px, 7vw, 86px);
+  justify-self: center;
+}
+
+.orientation-prompt {
+  display: none;
+}
+
+.phone-rotate {
+  position: relative;
+  display: inline-block;
+  width: 1.45rem;
+  height: 2.15rem;
+  border: 2px solid var(--accent);
+  border-radius: 0.42rem;
+  transform-origin: center;
+  animation: rotate-phone 1700ms ease-in-out infinite;
+}
+
+.phone-rotate::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0.18rem;
+  width: 0.24rem;
+  height: 0.24rem;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+@keyframes rotate-phone {
+  0%,
+  20% {
+    transform: rotate(0deg);
+  }
+
+  60%,
+  100% {
+    transform: rotate(90deg);
+  }
 }
 
 .note-main {
@@ -614,40 +658,6 @@
     height: 6px;
   }
 
-  .nav-note-readout {
-    display: flex;
-    flex: 0 0 auto;
-    gap: 0.34rem;
-    min-width: 112px;
-    justify-content: flex-start;
-  }
-
-  .note-main {
-    min-width: 42px;
-    min-height: 36px;
-    padding: 0.1rem 0.28rem;
-    border-radius: 12px;
-    font-size: 1.35rem;
-  }
-
-  .enharmonic {
-    font-size: 0.52rem;
-  }
-
-  .nav-note-readout .mini-metrics {
-    gap: 0.08rem;
-    font-size: 0.43rem;
-    letter-spacing: 0.02em;
-  }
-
-  .nav-note-readout .mini-metrics strong {
-    min-width: 62px;
-    min-height: 0.68rem;
-    padding: 0;
-    background: transparent;
-    line-height: 1;
-  }
-
   .nav-controls {
     display: flex;
     flex: 0 0 auto;
@@ -843,14 +853,6 @@
     letter-spacing: -0.04em;
   }
 
-  .nav-note-readout {
-    display: flex;
-    flex: 0 0 auto;
-    gap: 0.34rem;
-    min-width: 112px;
-    justify-content: flex-start;
-  }
-
   .note-main {
     min-width: 42px;
     min-height: 36px;
@@ -861,20 +863,6 @@
 
   .enharmonic {
     font-size: 0.52rem;
-  }
-
-  .nav-note-readout .mini-metrics {
-    gap: 0.08rem;
-    font-size: 0.43rem;
-    letter-spacing: 0.02em;
-  }
-
-  .nav-note-readout .mini-metrics strong {
-    min-width: 62px;
-    min-height: 0.68rem;
-    padding: 0;
-    background: transparent;
-    line-height: 1;
   }
 
   .nav-controls {
@@ -947,8 +935,27 @@
   }
 
   .note-readout-hero {
-    grid-template-columns: 1fr;
+    grid-template-columns: auto auto;
+    gap: 0.42rem;
     justify-items: center;
+  }
+
+  .layout-note-readout {
+    min-height: 48px;
+  }
+
+  .layout-note-readout .mini-metrics {
+    gap: 0.08rem;
+    font-size: 0.43rem;
+    letter-spacing: 0.02em;
+  }
+
+  .layout-note-readout .mini-metrics strong {
+    min-width: 62px;
+    min-height: 0.68rem;
+    padding: 0;
+    background: transparent;
+    line-height: 1;
   }
 
   .harmonica-frame {
@@ -1059,5 +1066,40 @@
     width: 1.1rem;
     height: 1.1rem;
     font-size: 0.58rem;
+  }
+}
+
+@media (max-width: 760px) and (orientation: portrait) {
+  .orientation-prompt {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 0.16rem 0.58rem;
+    align-items: center;
+    justify-content: center;
+    min-height: 54px;
+    color: var(--ink);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-align: left;
+  }
+
+  .orientation-prompt strong {
+    align-self: end;
+    color: var(--accent);
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .orientation-prompt span:last-child {
+    grid-column: 2;
+    align-self: start;
+    color: var(--muted);
+    font-size: 0.58rem;
+  }
+
+  .phone-rotate {
+    grid-row: span 2;
   }
 }

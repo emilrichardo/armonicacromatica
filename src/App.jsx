@@ -552,24 +552,6 @@ function App() {
           </div>
         </div>
 
-        <div className="note-readout-hero nav-note-readout" aria-live="polite">
-          <div className="note-main">
-            {detected ? detected.note.shortLabel : ''}
-            {detected?.note.alt ? (
-              <span className="enharmonic">/{detected.note.alt}</span>
-            ) : null}
-          </div>
-          <div className="mini-metrics">
-            <strong>{detected ? `${detected.frequency.toFixed(1)} Hz` : ''}</strong>
-            <strong>{detected ? formatCents(detected.cents) : ''}</strong>
-            <strong>
-              {detected?.position
-                ? `${detected.position.tone === 'draw' ? 'Aspirada' : 'Soplada'} · Agujero ${detected.position.hole}`
-                : ''}
-            </strong>
-          </div>
-        </div>
-
         <div className="nav-controls">
           <label className="input-select key-select">
             <span>Tonalidad</span>
@@ -614,6 +596,30 @@ function App() {
       </nav>
 
       <section className="layout-panel">
+        <div className="orientation-prompt" role="status">
+          <span className="phone-rotate" aria-hidden="true"></span>
+          <strong>Gira la pantalla</strong>
+          <span>Usala horizontal para ver la armonica completa.</span>
+        </div>
+
+        <div className="note-readout-hero layout-note-readout" aria-live="polite">
+          <div className="note-main">
+            {detected ? detected.note.shortLabel : ''}
+            {detected?.note.alt ? (
+              <span className="enharmonic">/{detected.note.alt}</span>
+            ) : null}
+          </div>
+          <div className="mini-metrics">
+            <strong>{detected ? `${detected.frequency.toFixed(1)} Hz` : ''}</strong>
+            <strong>{detected ? formatCents(detected.cents) : ''}</strong>
+            <strong>
+              {detected?.position
+                ? `${detected.position.tone === 'draw' ? 'Aspirada' : 'Soplada'} · Agujero ${detected.position.hole}`
+                : ''}
+            </strong>
+          </div>
+        </div>
+
         <div className="harmonica-scroll">
           <div className="harmonica-frame">
             <div className="harmonica-mouthpiece"></div>
