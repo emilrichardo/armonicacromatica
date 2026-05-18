@@ -662,9 +662,12 @@ function App() {
         </div>
 
         <div className="harmonica-scroll">
-          <div className="harmonica-frame">
+          <div
+            className="harmonica-frame"
+            style={{ '--holes': layout.length, '--harmonica-width': `${layout.length * 70 + 126}px` }}
+          >
             <div className="harmonica-mouthpiece"></div>
-            <div className="harmonica-body" style={{ '--holes': layout.length }}>
+            <div className="harmonica-body">
               <div className="holes-row draw-row">
                 <div
                   className="holes-grid"

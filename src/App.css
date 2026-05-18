@@ -349,7 +349,8 @@
   align-items: center;
   justify-content: center;
   gap: 0;
-  width: min(100%, 1220px);
+  width: min(100%, var(--harmonica-width, 1220px));
+  max-width: 1220px;
   margin: 0 auto;
 }
 
