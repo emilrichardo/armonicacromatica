@@ -631,9 +631,6 @@ function App() {
         </div>
 
         <header className="app-intro">
-          <p className="intro-kicker">{t('introKicker')}</p>
-          <h2>{t('introTitle')}</h2>
-          <p>{t('introDescription')}</p>
           <small>
             {t('developedBy')} ·{' '}
             <a className="contact-link" href="mailto:emilrichardo@gmail.com">

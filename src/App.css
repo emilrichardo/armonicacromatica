@@ -185,10 +185,9 @@
 
 .app-intro {
   display: grid;
-  gap: 0.22rem;
   justify-items: center;
   max-width: 760px;
-  min-height: clamp(86px, 9vw, 118px);
+  min-height: auto;
   text-align: center;
 }
 
@@ -1025,8 +1024,7 @@
 
   .app-intro {
     grid-area: intro;
-    gap: 0.08rem;
-    min-height: 48px;
+    min-height: auto;
   }
 
   .intro-kicker,
@@ -1346,7 +1344,7 @@
 
   .app-intro {
     margin-top: 0.38rem;
-    min-height: 48px;
+    min-height: auto;
   }
 
   .app-intro p:not(.intro-kicker) {
@@ -1424,8 +1422,7 @@
   }
 
   .app-intro {
-    gap: 0.02rem;
-    min-height: 40px;
+    min-height: auto;
     margin-top: 0.16rem;
   }
 
