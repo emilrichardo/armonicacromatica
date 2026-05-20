@@ -1237,11 +1237,11 @@
   flex: 0 0 auto;
   border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 0.26rem 0.48rem;
+  padding: 0.34rem 0.62rem;
   background: var(--control);
   color: var(--ink);
   font: inherit;
-  font-size: 0.68rem;
+  font-size: 0.82rem;
   font-weight: 900;
   line-height: 1;
   cursor: pointer;
@@ -1252,6 +1252,7 @@
   border-color: var(--ink);
   background: var(--ink);
   color: var(--paper);
+  font-size: 0.9rem;
 }
 
 .score-event-chip.muted {
@@ -2959,9 +2960,19 @@
     padding-bottom: 0.28rem;
   }
 
+  .harmonica-body {
+    padding-top: 1rem;
+  }
+
   .harmonica-scroll,
   .harmonica-frame,
   .harmonica-body {
     height: auto;
+  }
+}
+
+@media (max-width: 980px) and (orientation: landscape) {
+  .harmonica-body {
+    padding-top: 0.5rem;
   }
 }
