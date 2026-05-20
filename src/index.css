@@ -64,13 +64,14 @@ textarea {
 }
 
 #root {
+  --root-gutter: clamp(8px, 1vw, 18px);
   width: 100%;
   min-height: 100vh;
-  padding: clamp(8px, 1vw, 18px);
+  padding: var(--root-gutter);
 }
 
 @media (max-width: 720px) {
   #root {
-    padding: 8px;
+    --root-gutter: 8px;
   }
 }

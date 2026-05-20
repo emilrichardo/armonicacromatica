@@ -1,23 +1,35 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { PitchDetector } from 'pitchy'
-import './App.css'
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { PitchDetector } from "pitchy";
+import "./App.css";
 import {
   applyLocalizedSeo,
   buildSoftwareSchema,
   detectLocale,
   getTranslator,
-  LOCALE_LABELS,
   SUPPORTED_LOCALES,
-} from './i18n'
+} from "./i18n";
 
-const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+const NOTE_NAMES = [
+  "C",
+  "C#",
+  "D",
+  "D#",
+  "E",
+  "F",
+  "F#",
+  "G",
+  "G#",
+  "A",
+  "A#",
+  "B",
+];
 const ENHARMONIC_LABELS = {
-  'C#': 'Db',
-  'D#': 'Eb',
-  'F#': 'Gb',
-  'G#': 'Ab',
-  'A#': 'Bb',
-}
+  "C#": "Db",
+  "D#": "Eb",
+  "F#": "Gb",
+  "G#": "Ab",
+  "A#": "Bb",
+};
 
 const NOTE_ALIASES = {
   C: 0,
@@ -35,61 +47,63 @@ const NOTE_ALIASES = {
   LA: 9,
   SI: 11,
   TI: 11,
-}
+};
 
 const TUNINGS = {
-  '48': {
-    label: '48 voces',
+  48: {
+    label: "48 voces",
     holes: 12,
-    range: 'C4 - D7',
+    range: "C4 - D7",
     reeds: 48,
-    description: 'La cromática clásica de 12 agujeros: tres octavas en afinación solo.',
+    description:
+      "La cromática clásica de 12 agujeros: tres octavas en afinación solo.",
     blow: [60, 64, 67, 72, 72, 76, 79, 84, 84, 88, 91, 96],
     draw: [62, 65, 69, 71, 74, 77, 81, 83, 86, 89, 93, 95],
   },
-  '64': {
-    label: '64 voces',
+  64: {
+    label: "64 voces",
     holes: 16,
-    range: 'C3 - D7',
+    range: "C3 - D7",
     reeds: 64,
-    description: 'La de 16 agujeros añade una octava grave extra sin cambiar el patrón de respiración.',
+    description:
+      "La de 16 agujeros añade una octava grave extra sin cambiar el patrón de respiración.",
     blow: [48, 52, 55, 60, 60, 64, 67, 72, 72, 76, 79, 84, 84, 88, 91, 96],
     draw: [50, 53, 57, 59, 62, 65, 69, 71, 74, 77, 81, 83, 86, 89, 93, 95],
   },
-}
+};
 
 const KEY_OPTIONS = [
-  { label: 'C', root: 0 },
-  { label: 'Db', root: 1 },
-  { label: 'D', root: 2 },
-  { label: 'Eb', root: 3 },
-  { label: 'E', root: 4 },
-  { label: 'F', root: 5 },
-  { label: 'F#', root: 6 },
-  { label: 'G', root: 7 },
-  { label: 'Ab', root: 8 },
-  { label: 'A', root: 9 },
-  { label: 'Bb', root: 10 },
-  { label: 'B', root: 11 },
-]
+  { label: "C", root: 0 },
+  { label: "Db", root: 1 },
+  { label: "D", root: 2 },
+  { label: "Eb", root: 3 },
+  { label: "E", root: 4 },
+  { label: "F", root: 5 },
+  { label: "F#", root: 6 },
+  { label: "G", root: 7 },
+  { label: "Ab", root: 8 },
+  { label: "A", root: 9 },
+  { label: "Bb", root: 10 },
+  { label: "B", root: 11 },
+];
 
-const MAJOR_SCALE_STEPS = new Set([0, 2, 4, 5, 7, 9, 11])
-const MIN_CLARITY = 0.75
-const MIN_LEVEL = 0.02
-const MIN_SUSTAIN_MS = 120
-const MAX_DEVIATION_CENTS = 35
-const RELEASE_MS = 120
-const AUTOPLAY_STORAGE_KEY = 'cromanota-autoplay-score'
-const SONG_LIBRARY_STORAGE_KEY = 'cromanota-song-library'
-const LOCALE_STORAGE_KEY = 'cromanota-locale'
-const DEFAULT_SONG_TITLE = 'Cumpleaños feliz'
-const DEFAULT_SONG_CATEGORY = 'Tradicionales'
-const DEFAULT_USER_CATEGORY = 'Mis temas'
+const MAJOR_SCALE_STEPS = new Set([0, 2, 4, 5, 7, 9, 11]);
+const MIN_CLARITY = 0.75;
+const MIN_LEVEL = 0.02;
+const MIN_SUSTAIN_MS = 120;
+const MAX_DEVIATION_CENTS = 35;
+const RELEASE_MS = 120;
+const AUTOPLAY_STORAGE_KEY = "cromanota-autoplay-score";
+const SONG_LIBRARY_STORAGE_KEY = "cromanota-song-library";
+const LOCALE_STORAGE_KEY = "cromanota-locale";
+const DEFAULT_SONG_TITLE = "Cumpleaños feliz";
+const DEFAULT_SONG_CATEGORY = "Tradicionales";
+const DEFAULT_USER_CATEGORY = "Mis temas";
 const DEFAULT_SCORE_TEXT =
-  'G4:0.5 G4:0.5 A4:1 G4:1 C5:1 B4:2 | G4:0.5 G4:0.5 A4:1 G4:1 D5:1 C5:2 | G4:0.5 G4:0.5 G5:1 E5:1 C5:1 B4:1 A4:2 | F5:0.5 F5:0.5 E5:1 C5:1 D5:1 C5:2'
+  "G4:0.5 G4:0.5 A4:1 G4:1 C5:1 B4:2 | G4:0.5 G4:0.5 A4:1 G4:1 D5:1 C5:2 | G4:0.5 G4:0.5 G5:1 E5:1 C5:1 B4:1 A4:2 | F5:0.5 F5:0.5 E5:1 C5:1 D5:1 C5:2";
 const DEFAULT_SONGS = [
   {
-    id: 'happy-birthday',
+    id: "happy-birthday",
     title: DEFAULT_SONG_TITLE,
     category: DEFAULT_SONG_CATEGORY,
     scoreText: DEFAULT_SCORE_TEXT,
@@ -97,35 +111,130 @@ const DEFAULT_SONGS = [
     targetKey: 0,
     tempo: 92,
   },
-]
+  {
+    id: "estrellita-donde-estas",
+    title: "Estrellita dónde estás",
+    category: DEFAULT_SONG_CATEGORY,
+    scoreText:
+      "C4:1 C4:1 G4:1 G4:1 A4:1 A4:1 G4:2 | F4:1 F4:1 E4:1 E4:1 D4:1 D4:1 C4:2 | G4:1 G4:1 F4:1 F4:1 E4:1 E4:1 D4:2 | G4:1 G4:1 F4:1 F4:1 E4:1 E4:1 D4:2 | C4:1 C4:1 G4:1 G4:1 A4:1 A4:1 G4:2 | F4:1 F4:1 E4:1 E4:1 D4:1 D4:1 C4:2",
+    sourceKey: 0,
+    targetKey: 0,
+    tempo: 88,
+  },
+  {
+    id: "maria-tenia-un-corderito",
+    title: "María tenía un corderito",
+    category: DEFAULT_SONG_CATEGORY,
+    scoreText:
+      "E4:1 D4:1 C4:1 D4:1 E4:1 E4:1 E4:2 | D4:1 D4:1 D4:2 E4:1 G4:1 G4:2 | E4:1 D4:1 C4:1 D4:1 E4:1 E4:1 E4:1 E4:1 | D4:1 D4:1 E4:1 D4:1 C4:2",
+    sourceKey: 0,
+    targetKey: 0,
+    tempo: 84,
+  },
+  {
+    id: "oda-a-la-alegria",
+    title: "Oda a la alegría",
+    category: DEFAULT_SONG_CATEGORY,
+    scoreText:
+      "E4:1 E4:1 F4:1 G4:1 | G4:1 F4:1 E4:1 D4:1 | C4:1 C4:1 D4:1 E4:1 | E4:1 D4:1 D4:2 | E4:1 E4:1 F4:1 G4:1 | G4:1 F4:1 E4:1 D4:1 | C4:1 C4:1 D4:1 E4:1 | D4:1 C4:1 C4:2",
+    sourceKey: 0,
+    targetKey: 0,
+    tempo: 86,
+  },
+];
 const SCALE_PATTERNS = [
-  { id: 'major', name: 'Mayor', category: 'Diatonicas', steps: [0, 2, 4, 5, 7, 9, 11, 12] },
-  { id: 'natural-minor', name: 'Menor natural', category: 'Diatonicas', steps: [0, 2, 3, 5, 7, 8, 10, 12] },
-  { id: 'harmonic-minor', name: 'Menor armonica', category: 'Diatonicas', steps: [0, 2, 3, 5, 7, 8, 11, 12] },
-  { id: 'melodic-minor', name: 'Menor melodica', category: 'Diatonicas', steps: [0, 2, 3, 5, 7, 9, 11, 12] },
-  { id: 'major-pentatonic', name: 'Pentatonica mayor', category: 'Pentatonicas', steps: [0, 2, 4, 7, 9, 12] },
-  { id: 'minor-pentatonic', name: 'Pentatonica menor', category: 'Pentatonicas', steps: [0, 3, 5, 7, 10, 12] },
-  { id: 'blues', name: 'Blues', category: 'Blues', steps: [0, 3, 5, 6, 7, 10, 12] },
-  { id: 'dorian', name: 'Dorica', category: 'Modos', steps: [0, 2, 3, 5, 7, 9, 10, 12] },
-  { id: 'phrygian', name: 'Frigia', category: 'Modos', steps: [0, 1, 3, 5, 7, 8, 10, 12] },
-  { id: 'lydian', name: 'Lidia', category: 'Modos', steps: [0, 2, 4, 6, 7, 9, 11, 12] },
-  { id: 'mixolydian', name: 'Mixolidia', category: 'Modos', steps: [0, 2, 4, 5, 7, 9, 10, 12] },
-  { id: 'locrian', name: 'Locria', category: 'Modos', steps: [0, 1, 3, 5, 6, 8, 10, 12] },
-  { id: 'chromatic', name: 'Cromatica', category: 'Simetricas', steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] },
-]
+  {
+    id: "major",
+    name: "Mayor",
+    category: "Diatonicas",
+    steps: [0, 2, 4, 5, 7, 9, 11, 12],
+  },
+  {
+    id: "natural-minor",
+    name: "Menor natural",
+    category: "Diatonicas",
+    steps: [0, 2, 3, 5, 7, 8, 10, 12],
+  },
+  {
+    id: "harmonic-minor",
+    name: "Menor armonica",
+    category: "Diatonicas",
+    steps: [0, 2, 3, 5, 7, 8, 11, 12],
+  },
+  {
+    id: "melodic-minor",
+    name: "Menor melodica",
+    category: "Diatonicas",
+    steps: [0, 2, 3, 5, 7, 9, 11, 12],
+  },
+  {
+    id: "major-pentatonic",
+    name: "Pentatonica mayor",
+    category: "Pentatonicas",
+    steps: [0, 2, 4, 7, 9, 12],
+  },
+  {
+    id: "minor-pentatonic",
+    name: "Pentatonica menor",
+    category: "Pentatonicas",
+    steps: [0, 3, 5, 7, 10, 12],
+  },
+  {
+    id: "blues",
+    name: "Blues",
+    category: "Blues",
+    steps: [0, 3, 5, 6, 7, 10, 12],
+  },
+  {
+    id: "dorian",
+    name: "Dorica",
+    category: "Modos",
+    steps: [0, 2, 3, 5, 7, 9, 10, 12],
+  },
+  {
+    id: "phrygian",
+    name: "Frigia",
+    category: "Modos",
+    steps: [0, 1, 3, 5, 7, 8, 10, 12],
+  },
+  {
+    id: "lydian",
+    name: "Lidia",
+    category: "Modos",
+    steps: [0, 2, 4, 6, 7, 9, 11, 12],
+  },
+  {
+    id: "mixolydian",
+    name: "Mixolidia",
+    category: "Modos",
+    steps: [0, 2, 4, 5, 7, 9, 10, 12],
+  },
+  {
+    id: "locrian",
+    name: "Locria",
+    category: "Modos",
+    steps: [0, 1, 3, 5, 6, 8, 10, 12],
+  },
+  {
+    id: "chromatic",
+    name: "Cromatica",
+    category: "Simetricas",
+    steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+  },
+];
 
 function isScaleAlteration(note, keyRoot) {
-  return !MAJOR_SCALE_STEPS.has((note.midi - keyRoot + 120) % 12)
+  return !MAJOR_SCALE_STEPS.has((note.midi - keyRoot + 120) % 12);
 }
 
 function midiToFrequency(midi) {
-  return 440 * 2 ** ((midi - 69) / 12)
+  return 440 * 2 ** ((midi - 69) / 12);
 }
 
 function midiToNote(midi) {
-  const noteIndex = ((midi % 12) + 12) % 12
-  const octave = Math.floor(midi / 12) - 1
-  const name = NOTE_NAMES[noteIndex]
+  const noteIndex = ((midi % 12) + 12) % 12;
+  const octave = Math.floor(midi / 12) - 1;
+  const name = NOTE_NAMES[noteIndex];
 
   return {
     midi,
@@ -135,30 +244,34 @@ function midiToNote(midi) {
     shortLabel: name,
     alt: ENHARMONIC_LABELS[name] ?? null,
     frequency: midiToFrequency(midi),
-  }
+  };
 }
 
 function buildScaleExercise(pattern, keyOption) {
-  const rootMidi = 60 + keyOption.root
-  const ascendingMidis = pattern.steps.map((step) => rootMidi + step)
-  const descendingMidis = ascendingMidis.slice(0, -1).reverse()
-  const ascendingTokens = ascendingMidis.map((midi) => `${midiToNote(midi).label}:0.5`)
-  const descendingTokens = descendingMidis.map((midi) => `${midiToNote(midi).label}:0.5`)
+  const rootMidi = 60 + keyOption.root;
+  const ascendingMidis = pattern.steps.map((step) => rootMidi + step);
+  const descendingMidis = ascendingMidis.slice(0, -1).reverse();
+  const ascendingTokens = ascendingMidis.map(
+    (midi) => `${midiToNote(midi).label}:0.5`,
+  );
+  const descendingTokens = descendingMidis.map(
+    (midi) => `${midiToNote(midi).label}:0.5`,
+  );
 
   return {
     id: pattern.id,
     title: `${keyOption.label} ${pattern.name}`,
     category: `Escalas · ${pattern.category}`,
-    scoreText: `${ascendingTokens.join(' ')} | ${descendingTokens.join(' ')}`,
+    scoreText: `${ascendingTokens.join(" ")} | ${descendingTokens.join(" ")}`,
     sourceKey: keyOption.root,
     targetKey: keyOption.root,
     tempo: 84,
-  }
+  };
 }
 
 function buildLayout(tuning) {
   return tuning.blow.map((blowMidi, index) => {
-    const drawMidi = tuning.draw[index]
+    const drawMidi = tuning.draw[index];
 
     return {
       hole: index + 1,
@@ -166,104 +279,106 @@ function buildLayout(tuning) {
       blowSlide: midiToNote(blowMidi + 1),
       draw: midiToNote(drawMidi),
       drawSlide: midiToNote(drawMidi + 1),
-    }
-  })
+    };
+  });
 }
 
 function calculateLevel(buffer) {
-  let sum = 0
+  let sum = 0;
 
   for (let index = 0; index < buffer.length; index += 1) {
-    sum += buffer[index] * buffer[index]
+    sum += buffer[index] * buffer[index];
   }
 
-  return Math.min(1, Math.sqrt(sum / buffer.length) * 4)
+  return Math.min(1, Math.sqrt(sum / buffer.length) * 4);
 }
 
 function frequencyToNoteData(frequency) {
-  const midi = Math.round(12 * Math.log2(frequency / 440) + 69)
-  const targetFrequency = midiToFrequency(midi)
-  const cents = Math.round(1200 * Math.log2(frequency / targetFrequency))
+  const midi = Math.round(12 * Math.log2(frequency / 440) + 69);
+  const targetFrequency = midiToFrequency(midi);
+  const cents = Math.round(1200 * Math.log2(frequency / targetFrequency));
 
   return {
     note: midiToNote(midi),
     cents,
-  }
+  };
 }
 
 function formatCents(cents, t) {
   if (cents === 0) {
-    return t('tuned')
+    return t("tuned");
   }
 
-  return `${cents > 0 ? '+' : ''}${cents} ${t('cents')}`
+  return `${cents > 0 ? "+" : ""}${cents} ${t("cents")}`;
 }
 
 function normalizeSongRecord(song) {
   return {
     ...song,
     category: song.category?.trim() || DEFAULT_USER_CATEGORY,
-  }
+  };
 }
 
 function safeTrim(value) {
-  return typeof value === 'string' ? value.trim() : ''
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function flattenSelectGroups(groups) {
-  return groups.flatMap((group) => group.options)
+  return groups.flatMap((group) => group.options);
 }
 
 function groupItemsByCategory(items) {
   return items.reduce((groups, item) => {
-    const category = item.category?.trim() || DEFAULT_USER_CATEGORY
-    const existingGroup = groups.find((group) => group.category === category)
+    const category = item.category?.trim() || DEFAULT_USER_CATEGORY;
+    const existingGroup = groups.find((group) => group.category === category);
 
     if (existingGroup) {
-      existingGroup.items.push(item)
-      return groups
+      existingGroup.items.push(item);
+      return groups;
     }
 
-    groups.push({ category, items: [item] })
-    return groups
-  }, [])
+    groups.push({ category, items: [item] });
+    return groups;
+  }, []);
 }
 
 function getPreferredInputId(inputs) {
-  const realInputs = inputs.filter((device) => device.deviceId && device.deviceId !== 'default')
+  const realInputs = inputs.filter(
+    (device) => device.deviceId && device.deviceId !== "default",
+  );
 
   if (realInputs.length === 0) {
-    return 'default'
+    return "default";
   }
 
   const preferred = realInputs.find((device) =>
     /built-in|macbook|internal|integrado/i.test(device.label),
-  )
+  );
 
-  return preferred?.deviceId ?? realInputs[0].deviceId
+  return preferred?.deviceId ?? realInputs[0].deviceId;
 }
 
 function describeAudioError(error, t) {
   if (!(error instanceof Error)) {
-    return t('noMicAccess')
+    return t("noMicAccess");
   }
 
-  const name = 'name' in error ? error.name : 'Error'
-  const detail = error.message ? ` ${error.message}` : ''
+  const name = "name" in error ? error.name : "Error";
+  const detail = error.message ? ` ${error.message}` : "";
 
-  return `${name}.${detail}`.trim()
+  return `${name}.${detail}`.trim();
 }
 
 function buildCandidates(layout, midi) {
-  const candidates = []
+  const candidates = [];
 
   layout.forEach((column) => {
     const options = [
-      { tone: 'draw', slide: false, note: column.draw },
-      { tone: 'draw', slide: true, note: column.drawSlide },
-      { tone: 'blow', slide: false, note: column.blow },
-      { tone: 'blow', slide: true, note: column.blowSlide },
-    ]
+      { tone: "draw", slide: false, note: column.draw },
+      { tone: "draw", slide: true, note: column.drawSlide },
+      { tone: "blow", slide: false, note: column.blow },
+      { tone: "blow", slide: true, note: column.blowSlide },
+    ];
 
     options.forEach((option) => {
       if (option.note.midi === midi) {
@@ -274,72 +389,82 @@ function buildCandidates(layout, midi) {
           note: option.note,
           blowName: column.blow.name,
           drawName: column.draw.name,
-        })
+        });
       }
-    })
-  })
+    });
+  });
 
-  return candidates
+  return candidates;
 }
 
 function preferDoReCell(candidates, midi) {
-  const noteName = NOTE_NAMES[((midi % 12) + 12) % 12]
+  const noteName = NOTE_NAMES[((midi % 12) + 12) % 12];
 
-  if (noteName !== 'C' && noteName !== 'C#') {
-    return candidates
+  if (noteName !== "C" && noteName !== "C#") {
+    return candidates;
   }
 
   const doReCandidates = candidates.filter(
     (candidate) =>
-      candidate.tone === 'blow' &&
-      candidate.blowName === 'C' &&
-      candidate.drawName === 'D',
-  )
+      candidate.tone === "blow" &&
+      candidate.blowName === "C" &&
+      candidate.drawName === "D",
+  );
 
-  return doReCandidates.length > 0 ? doReCandidates : candidates
+  return doReCandidates.length > 0 ? doReCandidates : candidates;
 }
 
 function preferSiCellForDoSharp(candidates, midi, previousPosition) {
-  const noteName = NOTE_NAMES[((midi % 12) + 12) % 12]
+  const noteName = NOTE_NAMES[((midi % 12) + 12) % 12];
 
-  if (noteName !== 'C#' || previousPosition?.note?.name !== 'B') {
-    return candidates
+  if (noteName !== "C#" || previousPosition?.note?.name !== "B") {
+    return candidates;
   }
 
   const sameHoleCandidates = candidates.filter(
     (candidate) =>
       candidate.hole === previousPosition.hole &&
-      candidate.tone === 'blow' &&
+      candidate.tone === "blow" &&
       candidate.slide,
-  )
+  );
 
-  return sameHoleCandidates.length > 0 ? sameHoleCandidates : candidates
+  return sameHoleCandidates.length > 0 ? sameHoleCandidates : candidates;
+}
+
+function preferNaturalCandidates(candidates) {
+  const naturalCandidates = candidates.filter((candidate) => !candidate.slide);
+
+  return naturalCandidates.length > 0 ? naturalCandidates : candidates;
 }
 
 function findBestPosition(layout, midi, previousPosition) {
-  const rawCandidates = buildCandidates(layout, midi)
-  const contextualCandidates = preferSiCellForDoSharp(rawCandidates, midi, previousPosition)
+  const rawCandidates = buildCandidates(layout, midi);
+  const contextualCandidates = preferSiCellForDoSharp(
+    rawCandidates,
+    midi,
+    previousPosition,
+  );
   const candidates =
     contextualCandidates === rawCandidates
-      ? preferDoReCell(rawCandidates, midi)
-      : contextualCandidates
+      ? preferNaturalCandidates(preferDoReCell(rawCandidates, midi))
+      : contextualCandidates;
 
   if (candidates.length === 0) {
-    return null
+    return null;
   }
 
   if (!previousPosition) {
     return candidates.sort((left, right) => {
       if (left.hole !== right.hole) {
-        return left.hole - right.hole
+        return left.hole - right.hole;
       }
 
       if (left.slide !== right.slide) {
-        return Number(left.slide) - Number(right.slide)
+        return Number(left.slide) - Number(right.slide);
       }
 
-      return left.tone.localeCompare(right.tone)
-    })[0]
+      return left.tone.localeCompare(right.tone);
+    })[0];
   }
 
   return candidates
@@ -348,161 +473,163 @@ function findBestPosition(layout, midi, previousPosition) {
         Math.abs(candidate.hole - previousPosition.hole) * 20 +
         (candidate.tone !== previousPosition.tone ? 6 : 0) +
         (candidate.slide !== previousPosition.slide ? 2 : 0) +
-        (candidate.slide ? 1 : 0)
+        (candidate.slide ? 1 : 0);
 
-      return { candidate, score }
+      return { candidate, score };
     })
-    .sort((left, right) => left.score - right.score)[0].candidate
+    .sort((left, right) => left.score - right.score)[0].candidate;
 }
 
-function normalizeAccidental(value = '') {
-  return value.replace('♯', '#').replace('♭', 'b')
+function normalizeAccidental(value = "") {
+  return value.replace("♯", "#").replace("♭", "b");
 }
 
 function normalizeScoreText(scoreText) {
   return scoreText
-    .replaceAll('：', ':')
-    .replaceAll('，', ',')
-    .replaceAll('；', ' ')
-    .replaceAll(';', ' ')
-    .replaceAll('\t', ' ')
+    .replaceAll("：", ":")
+    .replaceAll("，", ",")
+    .replaceAll("；", " ")
+    .replaceAll(";", " ")
+    .replaceAll("\t", " ");
 }
 
 function splitScoreLines(scoreText) {
   const lines = normalizeScoreText(scoreText)
     .split(/\r?\n|\|/)
     .map((line) => line.trim())
-    .filter((line) => line.length > 0)
+    .filter((line) => line.length > 0);
 
-  return lines.length > 0 ? lines : [normalizeScoreText(scoreText).trim()].filter(Boolean)
+  return lines.length > 0
+    ? lines
+    : [normalizeScoreText(scoreText).trim()].filter(Boolean);
 }
 
 function parseScoreToken(token, index) {
   const cleaned = token
     .trim()
-    .replace(/^[[({<"']+/, '')
-    .replace(/[\])}>,"'.!?]+$/g, '')
+    .replace(/^[[({<"']+/, "")
+    .replace(/[\])}>,"'.!?]+$/g, "");
 
-  if (!cleaned || cleaned === '|') {
-    return null
+  if (!cleaned || cleaned === "|") {
+    return null;
   }
 
-  const restMatch = cleaned.match(/^(R|REST|SILENCE)(?::(\d+(?:[.,]\d+)?))?$/i)
+  const restMatch = cleaned.match(/^(R|REST|SILENCE)(?::(\d+(?:[.,]\d+)?))?$/i);
   if (restMatch) {
     return {
       id: `${cleaned}-${index}`,
-      type: 'rest',
-      duration: Number((restMatch[2] ?? 1).toString().replace(',', '.')),
-      label: 'R',
-    }
+      type: "rest",
+      duration: Number((restMatch[2] ?? 1).toString().replace(",", ".")),
+      label: "R",
+    };
   }
 
   const noteMatch = cleaned.match(
     /^([A-Ga-g]|do|re|mi|fa|sol|la|si|ti)([#b♯♭]?)(-?\d+)?(?::(\d+(?:[.,]\d+)?))?$/i,
-  )
+  );
 
   if (!noteMatch) {
     return {
       id: `${cleaned}-${index}`,
-      type: 'error',
+      type: "error",
       token: cleaned,
-    }
+    };
   }
 
-  const noteName = noteMatch[1].toUpperCase()
-  const accidental = normalizeAccidental(noteMatch[2] ?? '')
-  const octave = Number(noteMatch[3] ?? 4)
-  const duration = Number((noteMatch[4] ?? 1).toString().replace(',', '.'))
-  const basePitch = NOTE_ALIASES[noteName]
+  const noteName = noteMatch[1].toUpperCase();
+  const accidental = normalizeAccidental(noteMatch[2] ?? "");
+  const octave = Number(noteMatch[3] ?? 4);
+  const duration = Number((noteMatch[4] ?? 1).toString().replace(",", "."));
+  const basePitch = NOTE_ALIASES[noteName];
 
   if (!Number.isFinite(duration) || basePitch === undefined) {
     return {
       id: `${cleaned}-${index}`,
-      type: 'error',
+      type: "error",
       token: cleaned,
-    }
+    };
   }
 
   if (duration === 0) {
-    return null
+    return null;
   }
 
   if (duration < 0) {
     return {
       id: `${cleaned}-${index}`,
-      type: 'error',
+      type: "error",
       token: cleaned,
-    }
+    };
   }
 
-  const accidentalOffset = accidental === '#' ? 1 : accidental === 'b' ? -1 : 0
-  const midi = (octave + 1) * 12 + basePitch + accidentalOffset
+  const accidentalOffset = accidental === "#" ? 1 : accidental === "b" ? -1 : 0;
+  const midi = (octave + 1) * 12 + basePitch + accidentalOffset;
 
   return {
     id: `${cleaned}-${index}`,
-    type: 'note',
+    type: "note",
     duration,
     midi,
     label: cleaned.toUpperCase(),
-  }
+  };
 }
 
 function parseScoreText(scoreText) {
-  const events = []
-  const normalizedLines = splitScoreLines(scoreText)
-  let tokenIndex = 0
+  const events = [];
+  const normalizedLines = splitScoreLines(scoreText);
+  let tokenIndex = 0;
 
   normalizedLines.forEach((line, lineIndex) => {
     const tokens = line
-      .replaceAll(',', ' ')
+      .replaceAll(",", " ")
       .split(/\s+/)
       .map((token) => token.trim())
-      .filter(Boolean)
+      .filter(Boolean);
 
     tokens.forEach((token) => {
-      const parsed = parseScoreToken(token, tokenIndex)
-      tokenIndex += 1
+      const parsed = parseScoreToken(token, tokenIndex);
+      tokenIndex += 1;
 
       if (!parsed) {
-        return
+        return;
       }
 
-      if (parsed.type !== 'error') {
+      if (parsed.type !== "error") {
         events.push({
           ...parsed,
           lineIndex,
-        })
+        });
       }
-    })
-  })
+    });
+  });
 
   return {
     events,
     errors: [],
-  }
+  };
 }
 
 function buildAutoplaySequence(layout, events, semitoneShift) {
-  const sequence = []
-  let previousPosition = null
+  const sequence = [];
+  let previousPosition = null;
 
   events.forEach((event) => {
-    if (event.type === 'rest') {
+    if (event.type === "rest") {
       sequence.push({
         ...event,
         transposedMidi: null,
         note: null,
         position: null,
-      })
-      return
+      });
+      return;
     }
 
-    const transposedMidi = event.midi + semitoneShift
-    const position = findBestPosition(layout, transposedMidi, previousPosition)
-    const note = midiToNote(transposedMidi)
+    const transposedMidi = event.midi + semitoneShift;
+    const position = findBestPosition(layout, transposedMidi, previousPosition);
+    const note = midiToNote(transposedMidi);
 
     if (position) {
-      previousPosition = position
+      previousPosition = position;
     }
 
     sequence.push({
@@ -510,330 +637,379 @@ function buildAutoplaySequence(layout, events, semitoneShift) {
       transposedMidi,
       note,
       position,
-    })
-  })
+    });
+  });
 
-  return sequence
+  return sequence;
 }
 
 function serializeAutoplayState(payload) {
   return JSON.stringify({
     ...payload,
     savedAt: Date.now(),
-  })
+  });
 }
 
 function readStoredAutoplayState() {
   try {
-    const raw = window.localStorage.getItem(AUTOPLAY_STORAGE_KEY)
-    return raw ? JSON.parse(raw) : null
+    const raw = window.localStorage.getItem(AUTOPLAY_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
   } catch {
-    return null
+    return null;
   }
 }
 
 function readStoredSongLibrary() {
   try {
-    const raw = window.localStorage.getItem(SONG_LIBRARY_STORAGE_KEY)
-    const parsed = raw ? JSON.parse(raw) : []
+    const raw = window.localStorage.getItem(SONG_LIBRARY_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
 
-    return Array.isArray(parsed) ? parsed.map(normalizeSongRecord) : []
+    return Array.isArray(parsed) ? parsed.map(normalizeSongRecord) : [];
   } catch {
-    return []
+    return [];
   }
 }
 
 function playHarmonicaTone(audioContext, frequency, durationMs) {
-  const now = audioContext.currentTime
-  const durationSeconds = durationMs / 1000
-  const output = audioContext.createGain()
-  const filter = audioContext.createBiquadFilter()
-  const vibrato = audioContext.createOscillator()
-  const vibratoGain = audioContext.createGain()
+  const now = audioContext.currentTime;
+  const durationSeconds = durationMs / 1000;
+  const output = audioContext.createGain();
+  const filter = audioContext.createBiquadFilter();
+  const vibrato = audioContext.createOscillator();
+  const vibratoGain = audioContext.createGain();
 
-  const body = audioContext.createOscillator()
-  const reed = audioContext.createOscillator()
-  const breath = audioContext.createOscillator()
+  const body = audioContext.createOscillator();
+  const reed = audioContext.createOscillator();
+  const breath = audioContext.createOscillator();
 
-  output.gain.setValueAtTime(0.0001, now)
-  output.gain.linearRampToValueAtTime(0.16, now + 0.03)
-  output.gain.exponentialRampToValueAtTime(0.1, now + Math.max(0.08, durationSeconds * 0.65))
-  output.gain.exponentialRampToValueAtTime(0.0001, now + durationSeconds + 0.12)
+  output.gain.setValueAtTime(0.0001, now);
+  output.gain.linearRampToValueAtTime(0.16, now + 0.03);
+  output.gain.exponentialRampToValueAtTime(
+    0.1,
+    now + Math.max(0.08, durationSeconds * 0.65),
+  );
+  output.gain.exponentialRampToValueAtTime(
+    0.0001,
+    now + durationSeconds + 0.12,
+  );
 
-  filter.type = 'lowpass'
-  filter.frequency.setValueAtTime(2400, now)
-  filter.Q.setValueAtTime(1.1, now)
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(2400, now);
+  filter.Q.setValueAtTime(1.1, now);
 
-  body.type = 'triangle'
-  body.frequency.setValueAtTime(frequency, now)
+  body.type = "triangle";
+  body.frequency.setValueAtTime(frequency, now);
 
-  reed.type = 'sawtooth'
-  reed.frequency.setValueAtTime(frequency * 2, now)
-  reed.detune.setValueAtTime(4, now)
+  reed.type = "sawtooth";
+  reed.frequency.setValueAtTime(frequency * 2, now);
+  reed.detune.setValueAtTime(4, now);
 
-  breath.type = 'sine'
-  breath.frequency.setValueAtTime(frequency * 3, now)
-  breath.detune.setValueAtTime(-7, now)
+  breath.type = "sine";
+  breath.frequency.setValueAtTime(frequency * 3, now);
+  breath.detune.setValueAtTime(-7, now);
 
-  const bodyGain = audioContext.createGain()
-  const reedGain = audioContext.createGain()
-  const breathGain = audioContext.createGain()
+  const bodyGain = audioContext.createGain();
+  const reedGain = audioContext.createGain();
+  const breathGain = audioContext.createGain();
 
-  bodyGain.gain.value = 0.12
-  reedGain.gain.value = 0.035
-  breathGain.gain.value = 0.02
+  bodyGain.gain.value = 0.12;
+  reedGain.gain.value = 0.035;
+  breathGain.gain.value = 0.02;
 
-  vibrato.type = 'sine'
-  vibrato.frequency.value = 5.3
-  vibratoGain.gain.value = 12
+  vibrato.type = "sine";
+  vibrato.frequency.value = 5.3;
+  vibratoGain.gain.value = 12;
 
-  vibrato.connect(vibratoGain)
-  vibratoGain.connect(body.detune)
-  vibratoGain.connect(reed.detune)
+  vibrato.connect(vibratoGain);
+  vibratoGain.connect(body.detune);
+  vibratoGain.connect(reed.detune);
 
-  body.connect(bodyGain)
-  reed.connect(reedGain)
-  breath.connect(breathGain)
+  body.connect(bodyGain);
+  reed.connect(reedGain);
+  breath.connect(breathGain);
 
-  bodyGain.connect(filter)
-  reedGain.connect(filter)
-  breathGain.connect(filter)
-  filter.connect(output)
-  output.connect(audioContext.destination)
+  bodyGain.connect(filter);
+  reedGain.connect(filter);
+  breathGain.connect(filter);
+  filter.connect(output);
+  output.connect(audioContext.destination);
 
-  vibrato.start(now)
-  body.start(now)
-  reed.start(now)
-  breath.start(now)
+  vibrato.start(now);
+  body.start(now);
+  reed.start(now);
+  breath.start(now);
 
-  const stopAt = now + durationSeconds + 0.14
+  const stopAt = now + durationSeconds + 0.14;
 
-  vibrato.stop(stopAt)
-  body.stop(stopAt)
-  reed.stop(stopAt)
-  breath.stop(stopAt)
+  vibrato.stop(stopAt);
+  body.stop(stopAt);
+  reed.stop(stopAt);
+  breath.stop(stopAt);
 
   return () => {
     try {
-      vibrato.stop()
-      body.stop()
-      reed.stop()
-      breath.stop()
+      vibrato.stop();
+      body.stop();
+      reed.stop();
+      breath.stop();
     } catch {
-      return
+      return;
     }
-  }
+  };
 }
 
 function App() {
-  const [storedAutoplayState] = useState(() => readStoredAutoplayState())
+  const [storedAutoplayState] = useState(() => readStoredAutoplayState());
   const [locale, setLocale] = useState(() => {
-    const storedLocale = window.localStorage.getItem(LOCALE_STORAGE_KEY)
+    const storedLocale = window.localStorage.getItem(LOCALE_STORAGE_KEY);
 
     if (storedLocale && SUPPORTED_LOCALES.includes(storedLocale)) {
-      return storedLocale
+      return storedLocale;
     }
 
-    return detectLocale(navigator.languages ?? [navigator.language].filter(Boolean))
-  })
-  const t = getTranslator(locale)
-  const [instrument, setInstrument] = useState(storedAutoplayState?.instrument ?? '64')
-  const [micState, setMicState] = useState('idle')
-  const [detected, setDetected] = useState(null)
-  const [errorMessage, setErrorMessage] = useState('')
-  const [inputLevel, setInputLevel] = useState(0)
-  const [audioInputs, setAudioInputs] = useState([])
-  const [selectedInputId, setSelectedInputId] = useState('default')
-  const [activeInputLabel, setActiveInputLabel] = useState(t('noDevice'))
-  const [selectedKey, setSelectedKey] = useState(storedAutoplayState?.targetKey ?? 0)
+    return detectLocale(
+      navigator.languages ?? [navigator.language].filter(Boolean),
+    );
+  });
+  const t = getTranslator(locale);
+  const [instrument, setInstrument] = useState(
+    storedAutoplayState?.instrument ?? "64",
+  );
+  const [micState, setMicState] = useState("idle");
+  const [detected, setDetected] = useState(null);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [inputLevel, setInputLevel] = useState(0);
+  const [audioInputs, setAudioInputs] = useState([]);
+  const [selectedInputId, setSelectedInputId] = useState("default");
+  const [activeInputLabel, setActiveInputLabel] = useState(t("noDevice"));
+  const [selectedKey, setSelectedKey] = useState(
+    storedAutoplayState?.targetKey ?? 0,
+  );
   const [theme, setTheme] = useState(() => {
-    const savedTheme = window.localStorage.getItem('cromanota-theme')
+    const savedTheme = window.localStorage.getItem("cromanota-theme");
 
-    if (savedTheme === 'dark' || savedTheme === 'light') {
-      return savedTheme
+    if (savedTheme === "dark" || savedTheme === "light") {
+      return savedTheme;
     }
 
-    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-  })
-  const [scoreText, setScoreText] = useState(storedAutoplayState?.scoreText ?? DEFAULT_SCORE_TEXT)
-  const [songTitle, setSongTitle] = useState(storedAutoplayState?.songTitle ?? DEFAULT_SONG_TITLE)
-  const [songCategory, setSongCategory] = useState(storedAutoplayState?.songCategory ?? DEFAULT_SONG_CATEGORY)
-  const [songLibrary, setSongLibrary] = useState(() => readStoredSongLibrary())
-  const [playerMode, setPlayerMode] = useState(storedAutoplayState?.playerMode ?? 'songs')
+    return window.matchMedia?.("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  });
+  const [scoreText, setScoreText] = useState(
+    storedAutoplayState?.scoreText ?? DEFAULT_SCORE_TEXT,
+  );
+  const [songTitle, setSongTitle] = useState(
+    storedAutoplayState?.songTitle ?? DEFAULT_SONG_TITLE,
+  );
+  const [songCategory, setSongCategory] = useState(
+    storedAutoplayState?.songCategory ?? DEFAULT_SONG_CATEGORY,
+  );
+  const [songLibrary, setSongLibrary] = useState(() => readStoredSongLibrary());
+  const [playerMode, setPlayerMode] = useState(
+    storedAutoplayState?.playerMode ?? "songs",
+  );
   const [selectedScalePatternId, setSelectedScalePatternId] = useState(
     storedAutoplayState?.selectedScalePatternId ?? SCALE_PATTERNS[0].id,
-  )
-  const [sourceKey, setSourceKey] = useState(storedAutoplayState?.sourceKey ?? 0)
-  const [targetKey, setTargetKey] = useState(storedAutoplayState?.targetKey ?? 0)
-  const [tempo, setTempo] = useState(storedAutoplayState?.tempo ?? 92)
-  const [scorePanelOpen, setScorePanelOpen] = useState(false)
-  const [scoreHelpOpen, setScoreHelpOpen] = useState(false)
-  const [promptCopied, setPromptCopied] = useState(false)
-  const [autoplayStatus, setAutoplayStatus] = useState('idle')
-  const [autoplayIndex, setAutoplayIndex] = useState(-1)
-  const [autoplayCurrent, setAutoplayCurrent] = useState(null)
-  const [manualSelection, setManualSelection] = useState(null)
-  const [manualOptionsKey, setManualOptionsKey] = useState('')
-  const [lineMotion, setLineMotion] = useState('idle')
-  const audioContextRef = useRef(null)
-  const analyserRef = useRef(null)
-  const detectorRef = useRef(null)
-  const dataRef = useRef(null)
-  const streamRef = useRef(null)
-  const rafRef = useRef(0)
-  const pendingDetectionRef = useRef(null)
-  const lastConfirmedAtRef = useRef(0)
-  const detectedRef = useRef(null)
-  const lastPositionsRef = useRef([])
-  const autoplayAudioContextRef = useRef(null)
-  const autoplayAdvanceTimeoutRef = useRef(0)
-  const autoplayCurrentStopRef = useRef(null)
-  const previewAudioContextRef = useRef(null)
-  const scorePanelSnapshotRef = useRef(null)
-  const songWorkspaceRef = useRef(null)
-  const scaleWorkspaceRef = useRef(null)
-  const scoreHelpRef = useRef(null)
-  const previousLineIndexRef = useRef(null)
+  );
+  const [sourceKey, setSourceKey] = useState(
+    storedAutoplayState?.sourceKey ?? 0,
+  );
+  const [targetKey, setTargetKey] = useState(
+    storedAutoplayState?.targetKey ?? 0,
+  );
+  const [tempo, setTempo] = useState(storedAutoplayState?.tempo ?? 92);
+  const [scorePanelOpen, setScorePanelOpen] = useState(false);
+  const [scoreHelpOpen, setScoreHelpOpen] = useState(false);
+  const [promptCopied, setPromptCopied] = useState(false);
+  const [autoplayStatus, setAutoplayStatus] = useState("idle");
+  const [autoplayIndex, setAutoplayIndex] = useState(-1);
+  const [autoplayCurrent, setAutoplayCurrent] = useState(null);
+  const [manualSelection, setManualSelection] = useState(null);
+  const [manualOptionsKey, setManualOptionsKey] = useState("");
+  const [lineMotion, setLineMotion] = useState("idle");
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const detectorRef = useRef(null);
+  const dataRef = useRef(null);
+  const streamRef = useRef(null);
+  const rafRef = useRef(0);
+  const pendingDetectionRef = useRef(null);
+  const lastConfirmedAtRef = useRef(0);
+  const detectedRef = useRef(null);
+  const lastPositionsRef = useRef([]);
+  const autoplayAudioContextRef = useRef(null);
+  const autoplayAdvanceTimeoutRef = useRef(0);
+  const autoplayCurrentStopRef = useRef(null);
+  const previewAudioContextRef = useRef(null);
+  const scorePanelSnapshotRef = useRef(null);
+  const songWorkspaceRef = useRef(null);
+  const scaleWorkspaceRef = useRef(null);
+  const scoreHelpRef = useRef(null);
+  const previousLineIndexRef = useRef(null);
 
-  const tuning = TUNINGS[instrument]
-  const layout = buildLayout(tuning)
-  const transposeAmount = targetKey - sourceKey
-  const parsedScore = useMemo(() => parseScoreText(scoreText), [scoreText])
-  const scoreLines = useMemo(() => splitScoreLines(scoreText), [scoreText])
+  const tuning = TUNINGS[instrument];
+  const layout = buildLayout(tuning);
+  const transposeAmount = targetKey - sourceKey;
+  const parsedScore = useMemo(() => parseScoreText(scoreText), [scoreText]);
+  const scoreLines = useMemo(() => splitScoreLines(scoreText), [scoreText]);
   const autoplayError = useMemo(() => {
     if (parsedScore.events.length === 0) {
-      return t('autoplayEmpty')
+      return t("autoplayEmpty");
     }
 
     if (parsedScore.errors.length > 0) {
-      return `${t('autoplayParseError')} ${parsedScore.errors.join(', ')}`
+      return `${t("autoplayParseError")} ${parsedScore.errors.join(", ")}`;
     }
 
-    return ''
-  }, [parsedScore, t])
+    return "";
+  }, [parsedScore, t]);
   const baseEvents = useMemo(
     () => (autoplayError ? [] : parsedScore.events),
     [autoplayError, parsedScore.events],
-  )
+  );
   const transcribedSequence = useMemo(
     () =>
       baseEvents.length
         ? buildAutoplaySequence(layout, baseEvents, transposeAmount)
         : [],
     [baseEvents, layout, transposeAmount],
-  )
+  );
   const transcriptionUnavailable = useMemo(
-    () => transcribedSequence.filter((event) => event.type === 'note' && !event.position).length,
+    () =>
+      transcribedSequence.filter(
+        (event) => event.type === "note" && !event.position,
+      ).length,
     [transcribedSequence],
-  )
-  const savedLabel = autoplayError ? '' : t('autoplaySaved')
+  );
+  const savedLabel = autoplayError ? "" : t("autoplaySaved");
   const selectedSequenceEvent =
     autoplayIndex >= 0 && autoplayIndex < transcribedSequence.length
       ? transcribedSequence[autoplayIndex]
-      : null
-  const currentLineLabel = selectedSequenceEvent ? selectedSequenceEvent.lineIndex + 1 : 1
-  const currentLineIndex = selectedSequenceEvent?.lineIndex ?? 0
-  const currentLineText = scoreLines[currentLineIndex] ?? scoreLines[0] ?? ''
+      : null;
+  const currentLineLabel = selectedSequenceEvent
+    ? selectedSequenceEvent.lineIndex + 1
+    : 1;
+  const currentLineIndex = selectedSequenceEvent?.lineIndex ?? 0;
+  const currentLineText = scoreLines[currentLineIndex] ?? scoreLines[0] ?? "";
   const visibleScoreLines = useMemo(() => {
     const maxEventLine = transcribedSequence.reduce(
       (maxLine, event) => Math.max(maxLine, event.lineIndex),
       0,
-    )
-    const maxLineIndex = Math.max(scoreLines.length - 1, maxEventLine, 0)
+    );
+    const maxLineIndex = Math.max(scoreLines.length - 1, maxEventLine, 0);
 
     return [currentLineIndex - 1, currentLineIndex, currentLineIndex + 1]
       .filter((lineIndex) => lineIndex >= 0 && lineIndex <= maxLineIndex)
       .map((lineIndex) => ({
         lineIndex,
-        text: scoreLines[lineIndex] ?? '',
-        events: transcribedSequence.filter((event) => event.lineIndex === lineIndex),
+        text: scoreLines[lineIndex] ?? "",
+        events: transcribedSequence.filter(
+          (event) => event.lineIndex === lineIndex,
+        ),
         position:
           lineIndex < currentLineIndex
-            ? 'previous'
+            ? "previous"
             : lineIndex > currentLineIndex
-              ? 'next'
-              : 'current',
-      }))
-  }, [currentLineIndex, scoreLines, transcribedSequence])
+              ? "next"
+              : "current",
+      }));
+  }, [currentLineIndex, scoreLines, transcribedSequence]);
   const selectedScalePattern = useMemo(
-    () => SCALE_PATTERNS.find((pattern) => pattern.id === selectedScalePatternId) ?? SCALE_PATTERNS[0],
+    () =>
+      SCALE_PATTERNS.find((pattern) => pattern.id === selectedScalePatternId) ??
+      SCALE_PATTERNS[0],
     [selectedScalePatternId],
-  )
+  );
   const selectedScaleExercise = useMemo(() => {
-    const tonic = KEY_OPTIONS.find((key) => key.root === sourceKey) ?? KEY_OPTIONS[0]
-    return buildScaleExercise(selectedScalePattern, tonic)
-  }, [selectedScalePattern, sourceKey])
+    const tonic =
+      KEY_OPTIONS.find((key) => key.root === sourceKey) ?? KEY_OPTIONS[0];
+    return buildScaleExercise(selectedScalePattern, tonic);
+  }, [selectedScalePattern, sourceKey]);
   const selectedSongValue = useMemo(() => {
     const savedSong = songLibrary.find(
       (song) => song.title === songTitle && song.scoreText === scoreText,
-    )
+    );
 
     if (savedSong) {
-      return `saved:${savedSong.id}`
+      return `saved:${savedSong.id}`;
     }
 
     const defaultSong = DEFAULT_SONGS.find(
       (song) => song.title === songTitle && song.scoreText === scoreText,
-    )
+    );
 
     if (defaultSong) {
-      return `default:${defaultSong.id}`
+      return `default:${defaultSong.id}`;
     }
 
-    return 'current'
-  }, [scoreText, songLibrary, songTitle])
-  const defaultSongGroups = useMemo(() => groupItemsByCategory(DEFAULT_SONGS), [])
-  const savedSongGroups = useMemo(() => groupItemsByCategory(songLibrary), [songLibrary])
-  const scaleGroups = useMemo(() => groupItemsByCategory(SCALE_PATTERNS), [])
+    return "current";
+  }, [scoreText, songLibrary, songTitle]);
+  const defaultSongGroups = useMemo(
+    () => groupItemsByCategory(DEFAULT_SONGS),
+    [],
+  );
+  const savedSongGroups = useMemo(
+    () => groupItemsByCategory(songLibrary),
+    [songLibrary],
+  );
+  const scaleGroups = useMemo(() => groupItemsByCategory(SCALE_PATTERNS), []);
 
   useEffect(() => {
     if (selectedSequenceEvent == null) {
-      return
+      return;
     }
 
-    const previousLineIndex = previousLineIndexRef.current
-    previousLineIndexRef.current = selectedSequenceEvent.lineIndex
+    const previousLineIndex = previousLineIndexRef.current;
+    previousLineIndexRef.current = selectedSequenceEvent.lineIndex;
 
-    if (previousLineIndex == null || previousLineIndex === selectedSequenceEvent.lineIndex) {
-      return
+    if (
+      previousLineIndex == null ||
+      previousLineIndex === selectedSequenceEvent.lineIndex
+    ) {
+      return;
     }
 
-    setLineMotion(selectedSequenceEvent.lineIndex > previousLineIndex ? 'forward' : 'backward')
-    const timeoutId = window.setTimeout(() => setLineMotion('idle'), 420)
+    setLineMotion(
+      selectedSequenceEvent.lineIndex > previousLineIndex
+        ? "forward"
+        : "backward",
+    );
+    const timeoutId = window.setTimeout(() => setLineMotion("idle"), 420);
 
     return () => {
-      window.clearTimeout(timeoutId)
-    }
-  }, [selectedSequenceEvent])
+      window.clearTimeout(timeoutId);
+    };
+  }, [selectedSequenceEvent]);
 
   useEffect(() => {
-    applyLocalizedSeo(locale)
-    window.localStorage.setItem(LOCALE_STORAGE_KEY, locale)
+    applyLocalizedSeo(locale);
+    window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
 
-    const schemaId = 'cromanota-software-schema'
-    let schema = document.getElementById(schemaId)
+    const schemaId = "cromanota-software-schema";
+    let schema = document.getElementById(schemaId);
 
     if (!schema) {
-      schema = document.createElement('script')
-      schema.id = schemaId
-      schema.type = 'application/ld+json'
-      document.head.appendChild(schema)
+      schema = document.createElement("script");
+      schema.id = schemaId;
+      schema.type = "application/ld+json";
+      document.head.appendChild(schema);
     }
 
-    schema.textContent = JSON.stringify(buildSoftwareSchema(locale))
-  }, [locale])
+    schema.textContent = JSON.stringify(buildSoftwareSchema(locale));
+  }, [locale]);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme
-    window.localStorage.setItem('cromanota-theme', theme)
-  }, [theme])
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem("cromanota-theme", theme);
+  }, [theme]);
 
   useEffect(() => {
-    detectedRef.current = detected
-  }, [detected])
+    detectedRef.current = detected;
+  }, [detected]);
 
   useEffect(() => {
-    if (playerMode === 'songs') {
+    if (playerMode === "songs") {
       songWorkspaceRef.current = {
         songTitle,
         scoreText,
@@ -842,8 +1018,8 @@ function App() {
         tempo,
         instrument,
         songCategory,
-      }
-      return
+      };
+      return;
     }
 
     scaleWorkspaceRef.current = {
@@ -852,7 +1028,7 @@ function App() {
       tempo,
       instrument,
       selectedScalePatternId,
-    }
+    };
   }, [
     instrument,
     playerMode,
@@ -863,55 +1039,55 @@ function App() {
     sourceKey,
     targetKey,
     tempo,
-  ])
+  ]);
 
   useEffect(() => {
     function handleDocumentPointerDown(event) {
       if (!scoreHelpOpen) {
-        return
+        return;
       }
 
       if (scoreHelpRef.current?.contains(event.target)) {
-        return
+        return;
       }
 
-      setScoreHelpOpen(false)
+      setScoreHelpOpen(false);
     }
 
-    document.addEventListener('pointerdown', handleDocumentPointerDown)
+    document.addEventListener("pointerdown", handleDocumentPointerDown);
 
     return () => {
-      document.removeEventListener('pointerdown', handleDocumentPointerDown)
-    }
-  }, [scoreHelpOpen])
+      document.removeEventListener("pointerdown", handleDocumentPointerDown);
+    };
+  }, [scoreHelpOpen]);
 
   useEffect(() => {
     async function syncAudioInputs() {
       if (!navigator.mediaDevices?.enumerateDevices) {
-        return
+        return;
       }
 
-      const devices = await navigator.mediaDevices.enumerateDevices()
-      const inputs = devices.filter((device) => device.kind === 'audioinput')
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const inputs = devices.filter((device) => device.kind === "audioinput");
 
-      setAudioInputs(inputs)
+      setAudioInputs(inputs);
 
       if (inputs.length === 0) {
-        setSelectedInputId('default')
-        return
+        setSelectedInputId("default");
+        return;
       }
 
       if (!inputs.some((device) => device.deviceId === selectedInputId)) {
-        setSelectedInputId(getPreferredInputId(inputs))
+        setSelectedInputId(getPreferredInputId(inputs));
       }
     }
 
-    syncAudioInputs()
-  }, [selectedInputId])
+    syncAudioInputs();
+  }, [selectedInputId]);
 
   useEffect(() => {
     if (autoplayError || baseEvents.length === 0) {
-      return
+      return;
     }
 
     window.localStorage.setItem(
@@ -934,7 +1110,7 @@ function App() {
           baseEvents,
         },
       }),
-    )
+    );
   }, [
     autoplayError,
     baseEvents,
@@ -949,134 +1125,140 @@ function App() {
     selectedScalePatternId,
     transcriptionUnavailable,
     transcribedSequence,
-  ])
+  ]);
 
   useEffect(() => {
-    window.localStorage.setItem(SONG_LIBRARY_STORAGE_KEY, JSON.stringify(songLibrary))
-  }, [songLibrary])
+    window.localStorage.setItem(
+      SONG_LIBRARY_STORAGE_KEY,
+      JSON.stringify(songLibrary),
+    );
+  }, [songLibrary]);
 
   function stopListening() {
     if (rafRef.current) {
-      cancelAnimationFrame(rafRef.current)
-      rafRef.current = 0
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
     }
 
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop())
-      streamRef.current = null
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     }
 
     if (audioContextRef.current) {
-      audioContextRef.current.close()
-      audioContextRef.current = null
+      audioContextRef.current.close();
+      audioContextRef.current = null;
     }
 
-    analyserRef.current = null
-    detectorRef.current = null
-    dataRef.current = null
-    pendingDetectionRef.current = null
-    lastConfirmedAtRef.current = 0
-    lastPositionsRef.current = []
-    setDetected(null)
-    setInputLevel(0)
-    setActiveInputLabel(t('noDevice'))
-    setMicState('idle')
+    analyserRef.current = null;
+    detectorRef.current = null;
+    dataRef.current = null;
+    pendingDetectionRef.current = null;
+    lastConfirmedAtRef.current = 0;
+    lastPositionsRef.current = [];
+    setDetected(null);
+    setInputLevel(0);
+    setActiveInputLabel(t("noDevice"));
+    setMicState("idle");
   }
 
   function stopAutoplay({ keepSelection = true } = {}) {
     if (autoplayAdvanceTimeoutRef.current) {
-      window.clearTimeout(autoplayAdvanceTimeoutRef.current)
-      autoplayAdvanceTimeoutRef.current = 0
+      window.clearTimeout(autoplayAdvanceTimeoutRef.current);
+      autoplayAdvanceTimeoutRef.current = 0;
     }
 
     if (autoplayCurrentStopRef.current) {
-      autoplayCurrentStopRef.current()
-      autoplayCurrentStopRef.current = null
+      autoplayCurrentStopRef.current();
+      autoplayCurrentStopRef.current = null;
     }
 
     if (autoplayAudioContextRef.current) {
-      autoplayAudioContextRef.current.close()
-      autoplayAudioContextRef.current = null
+      autoplayAudioContextRef.current.close();
+      autoplayAudioContextRef.current = null;
     }
 
-    setAutoplayCurrent(null)
-    setAutoplayStatus('idle')
+    setAutoplayCurrent(null);
+    setAutoplayStatus("idle");
     if (!keepSelection) {
-      setAutoplayIndex(-1)
+      setAutoplayIndex(-1);
     }
   }
 
   function pauseAutoplay() {
     if (autoplayAdvanceTimeoutRef.current) {
-      window.clearTimeout(autoplayAdvanceTimeoutRef.current)
-      autoplayAdvanceTimeoutRef.current = 0
+      window.clearTimeout(autoplayAdvanceTimeoutRef.current);
+      autoplayAdvanceTimeoutRef.current = 0;
     }
 
     if (autoplayCurrentStopRef.current) {
-      autoplayCurrentStopRef.current()
-      autoplayCurrentStopRef.current = null
+      autoplayCurrentStopRef.current();
+      autoplayCurrentStopRef.current = null;
     }
 
     if (autoplayAudioContextRef.current) {
-      autoplayAudioContextRef.current.close()
-      autoplayAudioContextRef.current = null
+      autoplayAudioContextRef.current.close();
+      autoplayAudioContextRef.current = null;
     }
 
-    setAutoplayCurrent(null)
-    setAutoplayStatus('paused')
+    setAutoplayCurrent(null);
+    setAutoplayStatus("paused");
   }
 
   function stopPreview() {
     if (previewAudioContextRef.current) {
-      previewAudioContextRef.current.close()
-      previewAudioContextRef.current = null
+      previewAudioContextRef.current.close();
+      previewAudioContextRef.current = null;
     }
   }
 
   async function previewCellNote(note) {
     if (!note) {
-      return
+      return;
     }
 
-    if (!previewAudioContextRef.current || previewAudioContextRef.current.state === 'closed') {
-      previewAudioContextRef.current = new window.AudioContext()
+    if (
+      !previewAudioContextRef.current ||
+      previewAudioContextRef.current.state === "closed"
+    ) {
+      previewAudioContextRef.current = new window.AudioContext();
     }
 
-    await previewAudioContextRef.current.resume()
-    playHarmonicaTone(previewAudioContextRef.current, note.frequency, 520)
+    await previewAudioContextRef.current.resume();
+    playHarmonicaTone(previewAudioContextRef.current, note.frequency, 520);
   }
 
   async function handleManualCellSelection(position) {
     if (!position?.note) {
-      return
+      return;
     }
 
-    if (autoplayStatus === 'playing') {
-      pauseAutoplay()
+    if (autoplayStatus === "playing") {
+      pauseAutoplay();
     }
 
     const isSameSelection =
       manualSelection &&
       manualSelection.hole === position.hole &&
       manualSelection.tone === position.tone &&
-      manualSelection.slide === position.slide
+      manualSelection.slide === position.slide;
 
     if (isSameSelection) {
-      setManualSelection(null)
-      setManualOptionsKey('')
-      return
+      setManualSelection(null);
+      setManualOptionsKey("");
+      return;
     }
 
-    setManualSelection(position)
-    setManualOptionsKey(`${position.tone}-${position.hole}`)
-    setAutoplayCurrent(null)
-    setAutoplayIndex(-1)
-    await previewCellNote(position.note)
+    setManualSelection(position);
+    setManualOptionsKey(`${position.tone}-${position.hole}`);
+    setAutoplayCurrent(null);
+    setAutoplayIndex(-1);
+    await previewCellNote(position.note);
   }
 
   function saveCurrentSong() {
-    const normalizedTitle = safeTrim(songTitle) || t('untitledSong')
-    const normalizedCategory = safeTrim(songCategory) || t('uncategorized')
+    const normalizedTitle = safeTrim(songTitle) || t("untitledSong");
+    const normalizedCategory = safeTrim(songCategory) || t("uncategorized");
     const songPayload = {
       id: `${Date.now()}`,
       title: normalizedTitle,
@@ -1087,104 +1269,110 @@ function App() {
       tempo,
       instrument,
       updatedAt: Date.now(),
-    }
+    };
 
-    setSongTitle(normalizedTitle)
-    setSongCategory(normalizedCategory)
+    setSongTitle(normalizedTitle);
+    setSongCategory(normalizedCategory);
     setSongLibrary((currentLibrary) => {
-      const existingIndex = currentLibrary.findIndex((song) => song.title === normalizedTitle)
+      const existingIndex = currentLibrary.findIndex(
+        (song) => song.title === normalizedTitle,
+      );
 
       if (existingIndex < 0) {
-        return [songPayload, ...currentLibrary]
+        return [songPayload, ...currentLibrary];
       }
 
       return currentLibrary.map((song, index) =>
-        index === existingIndex ? { ...song, ...songPayload, id: song.id } : song,
-      )
-    })
+        index === existingIndex
+          ? { ...song, ...songPayload, id: song.id }
+          : song,
+      );
+    });
   }
 
   function applySong(song) {
-    const nextSourceKey = Number.isFinite(song.sourceKey) ? song.sourceKey : 0
-    const nextTargetKey = Number.isFinite(song.targetKey) ? song.targetKey : 0
+    const nextSourceKey = Number.isFinite(song.sourceKey) ? song.sourceKey : 0;
+    const nextTargetKey = Number.isFinite(song.targetKey) ? song.targetKey : 0;
 
-    stopAutoplay({ keepSelection: false })
-    setManualSelection(null)
-    setManualOptionsKey('')
-    setSongTitle(song.title ?? '')
-    setSongCategory(song.category?.trim() || t('uncategorized'))
-    setScoreText(song.scoreText ?? '')
-    setSourceKey(nextSourceKey)
-    setTargetKey(nextTargetKey)
-    setSelectedKey(nextTargetKey)
-    setTempo(song.tempo ?? 92)
+    stopAutoplay({ keepSelection: false });
+    setManualSelection(null);
+    setManualOptionsKey("");
+    setSongTitle(song.title ?? "");
+    setSongCategory(song.category?.trim() || t("uncategorized"));
+    setScoreText(song.scoreText ?? "");
+    setSourceKey(nextSourceKey);
+    setTargetKey(nextTargetKey);
+    setSelectedKey(nextTargetKey);
+    setTempo(song.tempo ?? 92);
     if (song.instrument && TUNINGS[song.instrument]) {
-      setInstrument(song.instrument)
+      setInstrument(song.instrument);
     }
   }
 
   function loadSong(song) {
-    applySong(song)
+    applySong(song);
   }
 
   function applyScaleExerciseByValues(patternId, keyRoot) {
-    const pattern = SCALE_PATTERNS.find((item) => item.id === patternId) ?? SCALE_PATTERNS[0]
-    const tonic = KEY_OPTIONS.find((key) => key.root === keyRoot) ?? KEY_OPTIONS[0]
-    const exercise = buildScaleExercise(pattern, tonic)
+    const pattern =
+      SCALE_PATTERNS.find((item) => item.id === patternId) ?? SCALE_PATTERNS[0];
+    const tonic =
+      KEY_OPTIONS.find((key) => key.root === keyRoot) ?? KEY_OPTIONS[0];
+    const exercise = buildScaleExercise(pattern, tonic);
 
-    stopAutoplay({ keepSelection: false })
-    setManualSelection(null)
-    setManualOptionsKey('')
-    setSongTitle(exercise.title)
-    setSongCategory(exercise.category)
-    setScoreText(exercise.scoreText)
+    stopAutoplay({ keepSelection: false });
+    setManualSelection(null);
+    setManualOptionsKey("");
+    setSongTitle(exercise.title);
+    setSongCategory(exercise.category);
+    setScoreText(exercise.scoreText);
   }
 
   function handleSongSelect(event) {
-    const value = event.target.value
+    const value = event.target.value;
 
-    if (value === 'current') {
-      return
+    if (value === "current") {
+      return;
     }
 
-    const [kind, songId] = value.split(':')
+    const [kind, songId] = value.split(":");
     const song =
-      kind === 'default'
+      kind === "default"
         ? DEFAULT_SONGS.find((defaultSong) => defaultSong.id === songId)
-        : songLibrary.find((savedSong) => savedSong.id === songId)
+        : songLibrary.find((savedSong) => savedSong.id === songId);
 
     if (song) {
-      applySong(song)
+      applySong(song);
     }
   }
 
   function handleScalePatternSelect(event) {
-    const nextPatternId = event.target.value
-    setSelectedScalePatternId(nextPatternId)
+    const nextPatternId = event.target.value;
+    setSelectedScalePatternId(nextPatternId);
 
-    if (playerMode === 'scales') {
-      applyScaleExerciseByValues(nextPatternId, sourceKey)
+    if (playerMode === "scales") {
+      applyScaleExerciseByValues(nextPatternId, sourceKey);
     }
   }
 
   function handleSourceKeyChange(event) {
-    const nextKey = Number(event.target.value)
-    setSourceKey(nextKey)
+    const nextKey = Number(event.target.value);
+    setSourceKey(nextKey);
 
-    if (playerMode === 'scales') {
-      applyScaleExerciseByValues(selectedScalePatternId, nextKey)
+    if (playerMode === "scales") {
+      applyScaleExerciseByValues(selectedScalePatternId, nextKey);
     }
   }
 
   function handlePlayerModeChange(nextMode) {
     if (nextMode === playerMode) {
-      return
+      return;
     }
 
-    setScorePanelOpen(false)
-    setScoreHelpOpen(false)
+    setScorePanelOpen(false);
+    setScoreHelpOpen(false);
 
-    if (nextMode === 'scales') {
+    if (nextMode === "scales") {
       songWorkspaceRef.current = {
         songTitle,
         songCategory,
@@ -1193,30 +1381,34 @@ function App() {
         targetKey,
         tempo,
         instrument,
-      }
+      };
 
-      const savedScaleWorkspace = scaleWorkspaceRef.current
+      const savedScaleWorkspace = scaleWorkspaceRef.current;
       if (savedScaleWorkspace) {
-        const nextPatternId = savedScaleWorkspace.selectedScalePatternId ?? selectedScalePatternId
-        const nextSourceKey = savedScaleWorkspace.sourceKey ?? sourceKey
-        const nextTargetKey = savedScaleWorkspace.targetKey ?? targetKey
+        const nextPatternId =
+          savedScaleWorkspace.selectedScalePatternId ?? selectedScalePatternId;
+        const nextSourceKey = savedScaleWorkspace.sourceKey ?? sourceKey;
+        const nextTargetKey = savedScaleWorkspace.targetKey ?? targetKey;
 
-        setSelectedScalePatternId(nextPatternId)
-        setSourceKey(nextSourceKey)
-        setTargetKey(nextTargetKey)
-        setSelectedKey(nextTargetKey)
-        setTempo(savedScaleWorkspace.tempo ?? tempo)
-        if (savedScaleWorkspace.instrument && TUNINGS[savedScaleWorkspace.instrument]) {
-          setInstrument(savedScaleWorkspace.instrument)
+        setSelectedScalePatternId(nextPatternId);
+        setSourceKey(nextSourceKey);
+        setTargetKey(nextTargetKey);
+        setSelectedKey(nextTargetKey);
+        setTempo(savedScaleWorkspace.tempo ?? tempo);
+        if (
+          savedScaleWorkspace.instrument &&
+          TUNINGS[savedScaleWorkspace.instrument]
+        ) {
+          setInstrument(savedScaleWorkspace.instrument);
         }
 
-        applyScaleExerciseByValues(nextPatternId, nextSourceKey)
+        applyScaleExerciseByValues(nextPatternId, nextSourceKey);
       } else {
-        applyScaleExerciseByValues(selectedScalePatternId, sourceKey)
+        applyScaleExerciseByValues(selectedScalePatternId, sourceKey);
       }
 
-      setPlayerMode('scales')
-      return
+      setPlayerMode("scales");
+      return;
     }
 
     scaleWorkspaceRef.current = {
@@ -1225,533 +1417,579 @@ function App() {
       tempo,
       instrument,
       selectedScalePatternId,
-    }
+    };
 
-    setPlayerMode('songs')
+    setPlayerMode("songs");
 
-    const savedSongWorkspace = songWorkspaceRef.current
+    const savedSongWorkspace = songWorkspaceRef.current;
     if (savedSongWorkspace) {
-      applySong(savedSongWorkspace)
-      return
+      applySong(savedSongWorkspace);
+      return;
     }
 
-    applySong(DEFAULT_SONGS[0])
+    applySong(DEFAULT_SONGS[0]);
   }
 
-  function renderSongSelect(className = '') {
-    const groups = []
+  function renderSongSelect(className = "") {
+    const groups = [];
 
-    if (selectedSongValue === 'current') {
+    if (selectedSongValue === "current") {
       groups.push({
         label: null,
-        options: [{ value: 'current', label: safeTrim(songTitle) || t('untitledSong') }],
-      })
+        options: [
+          { value: "current", label: safeTrim(songTitle) || t("untitledSong") },
+        ],
+      });
     }
 
     defaultSongGroups.forEach((group) => {
       groups.push({
-        label: `${t('defaultSongs')} · ${group.category}`,
+        label: `${t("defaultSongs")} · ${group.category}`,
         options: group.items.map((song) => ({
           value: `default:${song.id}`,
           label: song.title,
         })),
-      })
-    })
+      });
+    });
 
     savedSongGroups.forEach((group) => {
       groups.push({
-        label: `${t('savedSongs')} · ${group.category}`,
+        label: `${t("savedSongs")} · ${group.category}`,
         options: group.items.map((song) => ({
           value: `saved:${song.id}`,
           label: song.title,
         })),
-      })
-    })
+      });
+    });
 
     return (
       <CustomSelect
         className={className}
         value={selectedSongValue}
         groups={groups}
-        onChange={(nextValue) => handleSongSelect({ target: { value: nextValue } })}
-        ariaLabel={t('songTitle')}
+        onChange={(nextValue) =>
+          handleSongSelect({ target: { value: nextValue } })
+        }
+        ariaLabel={t("songTitle")}
       />
-    )
+    );
   }
 
-  function renderScaleSelect(className = '') {
+  function renderScaleSelect(className = "") {
     const groups = scaleGroups.map((group) => ({
       label: group.category,
       options: group.items.map((pattern) => ({
         value: pattern.id,
         label: pattern.name,
       })),
-    }))
+    }));
 
     return (
       <CustomSelect
         className={className}
         value={selectedScalePatternId}
         groups={groups}
-        onChange={(nextValue) => handleScalePatternSelect({ target: { value: nextValue } })}
-        ariaLabel={t('scalesTab')}
+        onChange={(nextValue) =>
+          handleScalePatternSelect({ target: { value: nextValue } })
+        }
+        ariaLabel={t("scalesTab")}
       />
-    )
+    );
   }
 
   function deleteSong(songId) {
-    setSongLibrary((currentLibrary) => currentLibrary.filter((song) => song.id !== songId))
+    setSongLibrary((currentLibrary) =>
+      currentLibrary.filter((song) => song.id !== songId),
+    );
   }
 
   function startNewSong() {
-    stopAutoplay({ keepSelection: false })
-    setManualSelection(null)
-    setManualOptionsKey('')
+    stopAutoplay({ keepSelection: false });
+    setManualSelection(null);
+    setManualOptionsKey("");
     scorePanelSnapshotRef.current = {
-      songTitle: songTitle ?? '',
-      songCategory: songCategory ?? '',
-      scoreText: scoreText ?? '',
+      songTitle: songTitle ?? "",
+      songCategory: songCategory ?? "",
+      scoreText: scoreText ?? "",
       sourceKey,
       targetKey,
       tempo,
       instrument,
-    }
+    };
 
-    setSongTitle('')
-    setScoreText('')
+    setSongTitle("");
+    setScoreText("");
 
-    setScorePanelOpen(true)
+    setScorePanelOpen(true);
   }
 
   function closeScorePanel() {
-    const snapshot = scorePanelSnapshotRef.current
+    const snapshot = scorePanelSnapshotRef.current;
 
     if (!safeTrim(scoreText) && snapshot) {
-      setSongTitle(snapshot.songTitle)
-      setSongCategory(snapshot.songCategory)
-      setScoreText(snapshot.scoreText)
-      setSourceKey(snapshot.sourceKey)
-      setTargetKey(snapshot.targetKey)
-      setSelectedKey(snapshot.targetKey)
-      setTempo(snapshot.tempo)
-      setInstrument(snapshot.instrument)
+      setSongTitle(snapshot.songTitle);
+      setSongCategory(snapshot.songCategory);
+      setScoreText(snapshot.scoreText);
+      setSourceKey(snapshot.sourceKey);
+      setTargetKey(snapshot.targetKey);
+      setSelectedKey(snapshot.targetKey);
+      setTempo(snapshot.tempo);
+      setInstrument(snapshot.instrument);
     }
 
-    setScoreHelpOpen(false)
-    setScorePanelOpen(false)
+    setScoreHelpOpen(false);
+    setScorePanelOpen(false);
   }
 
   function setSelectedAutoplayEvent(index) {
-    const nextEvent = transcribedSequence[index] ?? null
-    setManualSelection(null)
-    setManualOptionsKey('')
-    setAutoplayIndex(nextEvent ? index : -1)
-    setAutoplayCurrent(nextEvent?.type === 'note' && nextEvent.position ? nextEvent : null)
+    const nextEvent = transcribedSequence[index] ?? null;
+    setManualSelection(null);
+    setManualOptionsKey("");
+    setAutoplayIndex(nextEvent ? index : -1);
+    setAutoplayCurrent(
+      nextEvent?.type === "note" && nextEvent.position ? nextEvent : null,
+    );
   }
 
   async function previewSequenceEvent(index) {
-    const event = transcribedSequence[index]
+    const event = transcribedSequence[index];
 
     if (!event) {
-      return
+      return;
     }
 
-    setSelectedAutoplayEvent(index)
+    setSelectedAutoplayEvent(index);
 
-    if (event.type === 'note' && event.note && event.position) {
-      await previewCellNote(event.note)
+    if (event.type === "note" && event.note && event.position) {
+      await previewCellNote(event.note);
     }
   }
 
   async function playSequenceFromIndex(startIndex) {
     if (autoplayError || !transcribedSequence.length) {
-      stopAutoplay({ keepSelection: true })
-      return
+      stopAutoplay({ keepSelection: true });
+      return;
     }
 
     if (autoplayAdvanceTimeoutRef.current) {
-      window.clearTimeout(autoplayAdvanceTimeoutRef.current)
-      autoplayAdvanceTimeoutRef.current = 0
+      window.clearTimeout(autoplayAdvanceTimeoutRef.current);
+      autoplayAdvanceTimeoutRef.current = 0;
     }
 
     if (autoplayCurrentStopRef.current) {
-      autoplayCurrentStopRef.current()
-      autoplayCurrentStopRef.current = null
+      autoplayCurrentStopRef.current();
+      autoplayCurrentStopRef.current = null;
     }
 
-    const safeIndex = Math.max(0, Math.min(startIndex, transcribedSequence.length - 1))
+    const safeIndex = Math.max(
+      0,
+      Math.min(startIndex, transcribedSequence.length - 1),
+    );
     const playbackContext =
-      autoplayAudioContextRef.current && autoplayAudioContextRef.current.state !== 'closed'
+      autoplayAudioContextRef.current &&
+      autoplayAudioContextRef.current.state !== "closed"
         ? autoplayAudioContextRef.current
-        : new window.AudioContext()
+        : new window.AudioContext();
 
-    autoplayAudioContextRef.current = playbackContext
-    await playbackContext.resume()
-    setAutoplayStatus('playing')
+    autoplayAudioContextRef.current = playbackContext;
+    await playbackContext.resume();
+    setAutoplayStatus("playing");
 
-    const beatMs = 60000 / Math.max(40, tempo)
+    const beatMs = 60000 / Math.max(40, tempo);
 
     const playStep = (index) => {
-      const event = transcribedSequence[index]
+      const event = transcribedSequence[index];
 
       if (!event) {
-        stopAutoplay({ keepSelection: true })
-        return
+        stopAutoplay({ keepSelection: true });
+        return;
       }
 
       if (autoplayCurrentStopRef.current) {
-        autoplayCurrentStopRef.current()
-        autoplayCurrentStopRef.current = null
+        autoplayCurrentStopRef.current();
+        autoplayCurrentStopRef.current = null;
       }
 
-      setSelectedAutoplayEvent(index)
+      setSelectedAutoplayEvent(index);
 
-      const durationMs = event.duration * beatMs
-      const isPlayableNote = event.type === 'note' && event.note && event.position
+      const durationMs = event.duration * beatMs;
+      const isPlayableNote =
+        event.type === "note" && event.note && event.position;
 
       if (isPlayableNote) {
-        autoplayCurrentStopRef.current = playHarmonicaTone(playbackContext, event.note.frequency, durationMs)
+        autoplayCurrentStopRef.current = playHarmonicaTone(
+          playbackContext,
+          event.note.frequency,
+          durationMs,
+        );
       }
 
       autoplayAdvanceTimeoutRef.current = window.setTimeout(() => {
         if (index >= transcribedSequence.length - 1) {
-          stopAutoplay({ keepSelection: false })
-          previousLineIndexRef.current = null
-          return
+          stopAutoplay({ keepSelection: false });
+          previousLineIndexRef.current = null;
+          return;
         }
 
-        playStep(index + 1)
-      }, durationMs)
-    }
+        playStep(index + 1);
+      }, durationMs);
+    };
 
-    playStep(safeIndex)
+    playStep(safeIndex);
   }
 
   async function navigateAutoplayTo(index) {
-    const safeIndex = Math.max(0, Math.min(index, transcribedSequence.length - 1))
+    const safeIndex = Math.max(
+      0,
+      Math.min(index, transcribedSequence.length - 1),
+    );
 
-    if (autoplayStatus === 'playing') {
-      await playSequenceFromIndex(safeIndex)
-      return
+    if (autoplayStatus === "playing") {
+      await playSequenceFromIndex(safeIndex);
+      return;
     }
 
-    await previewSequenceEvent(safeIndex)
+    await previewSequenceEvent(safeIndex);
   }
 
   async function navigateByNote(direction) {
     if (!transcribedSequence.length) {
-      return
+      return;
     }
 
-    const baseIndex = autoplayIndex >= 0 ? autoplayIndex : 0
-    await navigateAutoplayTo(baseIndex + direction)
+    const baseIndex = autoplayIndex >= 0 ? autoplayIndex : 0;
+    await navigateAutoplayTo(baseIndex + direction);
   }
 
   async function navigateByLine(direction) {
     if (!transcribedSequence.length) {
-      return
+      return;
     }
 
-    const baseIndex = autoplayIndex >= 0 ? autoplayIndex : 0
-    const currentLine = transcribedSequence[baseIndex]?.lineIndex ?? 0
-    const targetLine = currentLine + direction
-    const targetIndex = transcribedSequence.findIndex((event) => event.lineIndex === targetLine)
+    const baseIndex = autoplayIndex >= 0 ? autoplayIndex : 0;
+    const currentLine = transcribedSequence[baseIndex]?.lineIndex ?? 0;
+    const targetLine = currentLine + direction;
+    const targetIndex = transcribedSequence.findIndex(
+      (event) => event.lineIndex === targetLine,
+    );
 
     if (targetIndex >= 0) {
-      await navigateAutoplayTo(targetIndex)
+      await navigateAutoplayTo(targetIndex);
     }
   }
 
   async function handleCopyPrompt() {
     try {
-      await navigator.clipboard.writeText(t('autoplayGuidePrompt'))
-      setPromptCopied(true)
-      window.setTimeout(() => setPromptCopied(false), 1600)
+      await navigator.clipboard.writeText(t("autoplayGuidePrompt"));
+      setPromptCopied(true);
+      window.setTimeout(() => setPromptCopied(false), 1600);
     } catch {
-      setPromptCopied(false)
+      setPromptCopied(false);
     }
   }
 
   useEffect(() => {
     return () => {
-      stopListening()
-      stopAutoplay()
-      stopPreview()
-    }
+      stopListening();
+      stopAutoplay();
+      stopPreview();
+    };
     // The cleanup only needs the refs from this mounted instance.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, []);
 
   function analyseFrame() {
-    const analyser = analyserRef.current
-    const data = dataRef.current
-    const audioContext = audioContextRef.current
+    const analyser = analyserRef.current;
+    const data = dataRef.current;
+    const audioContext = audioContextRef.current;
     if (!analyser || !data || !audioContext) {
-      return
+      return;
     }
 
-    analyser.getFloatTimeDomainData(data)
-    const level = calculateLevel(data)
-    setInputLevel(level)
+    analyser.getFloatTimeDomainData(data);
+    const level = calculateLevel(data);
+    setInputLevel(level);
 
-    const now = audioContext.currentTime * 1000
+    const now = audioContext.currentTime * 1000;
 
-    const detector = detectorRef.current
+    const detector = detectorRef.current;
     const [frequency, clarity] = detector
       ? detector.findPitch(data, audioContext.sampleRate)
-      : [0, 0]
+      : [0, 0];
 
-    if (frequency >= 100 && frequency <= 3000 && clarity >= MIN_CLARITY && level >= MIN_LEVEL) {
-      const pitch = frequencyToNoteData(frequency)
-      const currentCandidate = pendingDetectionRef.current
+    if (
+      frequency >= 100 &&
+      frequency <= 3000 &&
+      clarity >= MIN_CLARITY &&
+      level >= MIN_LEVEL
+    ) {
+      const pitch = frequencyToNoteData(frequency);
+      const currentCandidate = pendingDetectionRef.current;
       const nextDetection = {
         ...pitch,
         frequency,
         clarity,
         timestamp: now,
-      }
+      };
 
       const sameNote =
         currentCandidate &&
         currentCandidate.note.midi === pitch.note.midi &&
-        Math.abs(currentCandidate.cents - pitch.cents) <= MAX_DEVIATION_CENTS
+        Math.abs(currentCandidate.cents - pitch.cents) <= MAX_DEVIATION_CENTS;
 
       if (!sameNote) {
-        pendingDetectionRef.current = nextDetection
+        pendingDetectionRef.current = nextDetection;
       } else if (now - currentCandidate.timestamp >= MIN_SUSTAIN_MS) {
         const matchedPosition = findBestPosition(
           layout,
           pitch.note.midi,
           lastPositionsRef.current[0] ?? null,
-        )
+        );
 
-        pendingDetectionRef.current = nextDetection
-        lastConfirmedAtRef.current = now
-        lastPositionsRef.current = matchedPosition ? [matchedPosition] : []
+        pendingDetectionRef.current = nextDetection;
+        lastConfirmedAtRef.current = now;
+        lastPositionsRef.current = matchedPosition ? [matchedPosition] : [];
         setDetected({
           note: pitch.note,
           cents: pitch.cents,
           frequency,
           clarity,
           position: matchedPosition,
-        })
+        });
       }
     } else {
-      pendingDetectionRef.current = null
+      pendingDetectionRef.current = null;
 
-      if (detectedRef.current && now - lastConfirmedAtRef.current >= RELEASE_MS) {
-        lastPositionsRef.current = []
-        setDetected(null)
+      if (
+        detectedRef.current &&
+        now - lastConfirmedAtRef.current >= RELEASE_MS
+      ) {
+        lastPositionsRef.current = [];
+        setDetected(null);
       }
     }
 
-    rafRef.current = requestAnimationFrame(analyseFrame)
+    rafRef.current = requestAnimationFrame(analyseFrame);
   }
 
   async function startListening(inputId = selectedInputId) {
     try {
-      stopListening()
-      setErrorMessage('')
-      setMicState('requesting')
+      stopListening();
+      setErrorMessage("");
+      setMicState("requesting");
 
       if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error(t('unsupportedMic'))
+        throw new Error(t("unsupportedMic"));
       }
 
       const baseAudioConfig = {
         echoCancellation: false,
         noiseSuppression: false,
         autoGainControl: false,
-      }
+      };
 
-      let stream
+      let stream;
 
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           audio:
-            inputId && inputId !== 'default'
+            inputId && inputId !== "default"
               ? {
                   ...baseAudioConfig,
                   deviceId: { ideal: inputId },
                 }
               : baseAudioConfig,
-        })
+        });
       } catch (deviceError) {
         stream = await navigator.mediaDevices.getUserMedia({
           audio: baseAudioConfig,
-        })
+        });
 
-        setErrorMessage(`${t('fallbackMic')} ${describeAudioError(deviceError, t)}`)
+        setErrorMessage(
+          `${t("fallbackMic")} ${describeAudioError(deviceError, t)}`,
+        );
       }
 
-      const audioContext = new window.AudioContext({ latencyHint: 'interactive' })
-      await audioContext.resume()
-      const analyser = audioContext.createAnalyser()
-      const source = audioContext.createMediaStreamSource(stream)
+      const audioContext = new window.AudioContext({
+        latencyHint: "interactive",
+      });
+      await audioContext.resume();
+      const analyser = audioContext.createAnalyser();
+      const source = audioContext.createMediaStreamSource(stream);
 
-      analyser.fftSize = 2048
-      analyser.smoothingTimeConstant = 0.08
-      source.connect(analyser)
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.08;
+      source.connect(analyser);
 
-      streamRef.current = stream
-      const activeTrack = stream.getAudioTracks()[0]
-      setActiveInputLabel(activeTrack?.label || t('activeMic'))
-      audioContextRef.current = audioContext
-      analyserRef.current = analyser
-      dataRef.current = new Float32Array(analyser.fftSize)
-      detectorRef.current = PitchDetector.forFloat32Array(analyser.fftSize)
+      streamRef.current = stream;
+      const activeTrack = stream.getAudioTracks()[0];
+      setActiveInputLabel(activeTrack?.label || t("activeMic"));
+      audioContextRef.current = audioContext;
+      analyserRef.current = analyser;
+      dataRef.current = new Float32Array(analyser.fftSize);
+      detectorRef.current = PitchDetector.forFloat32Array(analyser.fftSize);
       if (navigator.mediaDevices?.enumerateDevices) {
-        const devices = await navigator.mediaDevices.enumerateDevices()
-        const inputs = devices.filter((device) => device.kind === 'audioinput')
-        setAudioInputs(inputs)
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const inputs = devices.filter((device) => device.kind === "audioinput");
+        setAudioInputs(inputs);
 
         if (
           activeTrack?.label &&
           inputs.some((device) => device.label === activeTrack.label) &&
-          selectedInputId === 'default'
+          selectedInputId === "default"
         ) {
-          const matched = inputs.find((device) => device.label === activeTrack.label)
+          const matched = inputs.find(
+            (device) => device.label === activeTrack.label,
+          );
 
           if (matched?.deviceId) {
-            setSelectedInputId(matched.deviceId)
+            setSelectedInputId(matched.deviceId);
           }
         }
       }
 
-      setMicState('listening')
-      analyseFrame()
+      setMicState("listening");
+      analyseFrame();
     } catch (error) {
-      setMicState('error')
+      setMicState("error");
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : t('noMicAccess'),
-      )
+        error instanceof Error ? error.message : t("noMicAccess"),
+      );
     }
   }
 
   async function handleInputChange(event) {
-    const nextInputId = event.target.value
-    const shouldRestart = micState === 'listening'
+    const nextInputId = event.target.value;
+    const shouldRestart = micState === "listening";
 
-    setSelectedInputId(nextInputId)
+    setSelectedInputId(nextInputId);
 
     if (shouldRestart) {
-      stopListening()
-      await startListening(nextInputId)
+      stopListening();
+      await startListening(nextInputId);
     }
   }
 
   async function handleAutoplay() {
     if (autoplayError || !transcribedSequence.length) {
-      stopAutoplay({ keepSelection: true })
-      return
+      stopAutoplay({ keepSelection: true });
+      return;
     }
 
-    const startIndex = autoplayIndex >= 0 ? autoplayIndex : 0
-    stopAutoplay({ keepSelection: true })
-    await playSequenceFromIndex(startIndex)
+    const startIndex = autoplayIndex >= 0 ? autoplayIndex : 0;
+    stopAutoplay({ keepSelection: true });
+    await playSequenceFromIndex(startIndex);
   }
 
-  const liveNote = manualSelection ?? autoplayCurrent ?? selectedSequenceEvent ?? detected
-  const activePositions = liveNote?.position ? [liveNote.position] : []
+  const liveNote =
+    manualSelection ?? autoplayCurrent ?? selectedSequenceEvent ?? detected;
+  const activePositions = liveNote?.position ? [liveNote.position] : [];
   const holeStates = layout.map((column) => {
     const drawPosition = activePositions.find(
-      (position) => position.hole === column.hole && position.tone === 'draw',
-    )
+      (position) => position.hole === column.hole && position.tone === "draw",
+    );
     const blowPosition = activePositions.find(
-      (position) => position.hole === column.hole && position.tone === 'blow',
-    )
+      (position) => position.hole === column.hole && position.tone === "blow",
+    );
 
     return {
       hole: column.hole,
-      drawMode: drawPosition ? (drawPosition.slide ? 'slide' : 'natural') : null,
-      blowMode: blowPosition ? (blowPosition.slide ? 'slide' : 'natural') : null,
-    }
-  })
+      drawMode: drawPosition
+        ? drawPosition.slide
+          ? "slide"
+          : "natural"
+        : null,
+      blowMode: blowPosition
+        ? blowPosition.slide
+          ? "slide"
+          : "natural"
+        : null,
+    };
+  });
 
-  const activeSlide = Boolean(liveNote?.position?.slide)
+  const activeSlide = Boolean(liveNote?.position?.slide);
   const getHoleDisplay = (hole) => {
-    if (instrument !== '64') {
+    if (instrument !== "64") {
       return {
         label: hole,
         isLow: false,
-      }
+      };
     }
 
     return {
-      label: hole <= 4 ? hole : hole - 4,
+      label: hole <= 4 ? `${hole}L` : hole - 4,
       isLow: hole <= 4,
-    }
-  }
+    };
+  };
 
   return (
     <main className="app-shell">
-      <nav className="top-nav" aria-label={t('mainControls')}>
+      <nav className="top-nav" aria-label={t("mainControls")}>
         <div className="brand-lockup">
           <div className="brand-logo" aria-hidden="true">
             <span></span>
             <span></span>
           </div>
           <div>
-            <p className="brand-kicker">{t('project')}</p>
+            <p className="brand-kicker">{t("project")}</p>
             <h1 className="brand-title">CromaNota</h1>
           </div>
         </div>
 
         <div className="nav-controls">
           <label className="input-select key-select">
-            <span>{t('key')}</span>
+            <span>{t("key")}</span>
             <CustomSelect
               value={selectedKey}
               onChange={(nextValue) => setSelectedKey(Number(nextValue))}
               options={KEY_OPTIONS.map((key) => ({
                 value: key.root,
-                label: `${key.label} ${t('major')}`,
+                label: `${key.label} ${t("major")}`,
               }))}
-              ariaLabel={t('key')}
+              ariaLabel={t("key")}
             />
           </label>
 
-          <div className="instrument-toggle" role="tablist" aria-label={t('harmonicaType')}>
+          <div
+            className="instrument-toggle"
+            role="tablist"
+            aria-label={t("harmonicaType")}
+          >
             {Object.entries(TUNINGS).map(([key, value]) => (
               <button
                 key={key}
                 type="button"
                 role="tab"
                 aria-selected={instrument === key}
-                className={instrument === key ? 'toggle-chip active' : 'toggle-chip'}
+                className={
+                  instrument === key ? "toggle-chip active" : "toggle-chip"
+                }
                 onClick={() => setInstrument(key)}
               >
-                <span>{value.reeds} {t('voices')}</span>
-                <small>{value.holes} {t('holes')}</small>
+                <span>
+                  {value.reeds} {t("voices")}
+                </span>
+                <small>
+                  {value.holes} {t("holes")}
+                </small>
               </button>
             ))}
           </div>
         </div>
 
         <div className="menu-controls">
-          <label className="input-select locale-select">
-            <span>{t('language')}</span>
-            <CustomSelect
-              value={locale}
-              onChange={setLocale}
-              options={SUPPORTED_LOCALES.map((supportedLocale) => ({
-                value: supportedLocale,
-                label: LOCALE_LABELS[supportedLocale] ?? supportedLocale.toUpperCase(),
-              }))}
-              ariaLabel={t('language')}
-            />
-          </label>
-
           <button
             type="button"
             className="theme-toggle"
-            onClick={() => setTheme((currentTheme) => (currentTheme === 'dark' ? 'light' : 'dark'))}
-            aria-label={theme === 'dark' ? t('enableLight') : t('enableDark')}
+            onClick={() =>
+              setTheme((currentTheme) =>
+                currentTheme === "dark" ? "light" : "dark",
+              )
+            }
+            aria-label={theme === "dark" ? t("enableLight") : t("enableDark")}
           >
-            <span aria-hidden="true">{theme === 'dark' ? '☼' : '●'}</span>
-            <span>{theme === 'dark' ? t('light') : t('dark')}</span>
+            <span aria-hidden="true">{theme === "dark" ? "☼" : "●"}</span>
+            <span>{theme === "dark" ? t("light") : t("dark")}</span>
           </button>
         </div>
       </nav>
@@ -1759,37 +1997,40 @@ function App() {
       <section className="layout-panel">
         <div className="orientation-prompt" role="status">
           <span className="phone-rotate" aria-hidden="true"></span>
-          <strong>{t('rotateTitle')}</strong>
-          <span>{t('rotateDescription')}</span>
+          <strong>{t("rotateTitle")}</strong>
+          <span>{t("rotateDescription")}</span>
         </div>
-
-        <header className="app-intro">
-          <small>
-            {t('developedBy')} ·{' '}
-            <a className="contact-link" href="mailto:emilrichardo@gmail.com">
-              emilrichardo@gmail.com
-            </a>
-          </small>
-        </header>
 
         <div
           className="note-readout-hero layout-note-readout"
-          aria-label={t('liveRegionLabel')}
+          aria-label={t("liveRegionLabel")}
           aria-live="polite"
         >
           <div className="note-main">
-            {liveNote ? liveNote.note.shortLabel : ''}
+            {liveNote ? liveNote.note.shortLabel : ""}
             {liveNote?.note.alt ? (
               <span className="enharmonic">/{liveNote.note.alt}</span>
             ) : null}
           </div>
           <div className="mini-metrics">
-            <strong>{detected ? `${detected.frequency.toFixed(1)} Hz` : autoplayCurrent ? t('autoplayPlaying') : ''}</strong>
-            <strong>{detected ? formatCents(detected.cents, t) : autoplayCurrent ? autoplayCurrent.note.label : ''}</strong>
+            <strong>
+              {detected
+                ? `${detected.frequency.toFixed(1)} Hz`
+                : autoplayCurrent
+                  ? t("autoplayPlaying")
+                  : ""}
+            </strong>
+            <strong>
+              {detected
+                ? formatCents(detected.cents, t)
+                : autoplayCurrent
+                  ? autoplayCurrent.note.label
+                  : ""}
+            </strong>
             <strong>
               {liveNote?.position
-                ? `${liveNote.position.tone === 'draw' ? t('draw') : t('blow')} · ${t('hole')} ${liveNote.position.hole}`
-                : ''}
+                ? `${liveNote.position.tone === "draw" ? t("draw") : t("blow")} · ${t("hole")} ${liveNote.position.hole}`
+                : ""}
             </strong>
           </div>
         </div>
@@ -1797,17 +2038,22 @@ function App() {
         <div className="harmonica-scroll" dir="ltr">
           <div
             className="harmonica-frame"
-            style={{ '--holes': layout.length, '--harmonica-width': `${layout.length * 70 + 126}px` }}
+            style={{
+              "--holes": layout.length,
+              "--harmonica-width": `${layout.length * 70 + 126}px`,
+            }}
           >
             <div className="harmonica-mouthpiece"></div>
             <div className="harmonica-body">
               <div className="holes-row draw-row">
                 <div
                   className="holes-grid"
-                  style={{ gridTemplateColumns: `repeat(${layout.length}, minmax(0, 1fr))` }}
+                  style={{
+                    gridTemplateColumns: `repeat(${layout.length}, minmax(0, 1fr))`,
+                  }}
                 >
                   {layout.map((column, index) => {
-                    const display = getHoleDisplay(column.hole)
+                    const display = getHoleDisplay(column.hole);
 
                     return (
                       <HoleBubble
@@ -1823,26 +2069,28 @@ function App() {
                         onPreview={handleManualCellSelection}
                         basePosition={{
                           hole: column.hole,
-                          tone: 'draw',
+                          tone: "draw",
                           slide: false,
                           note: column.draw,
                         }}
                         slidePosition={{
                           hole: column.hole,
-                          tone: 'draw',
+                          tone: "draw",
                           slide: true,
                           note: column.drawSlide,
                         }}
                         showOptions={manualOptionsKey === `draw-${column.hole}`}
                       />
-                    )
+                    );
                   })}
                 </div>
               </div>
               <div className="holes-row blow-row">
                 <div
                   className="holes-grid"
-                  style={{ gridTemplateColumns: `repeat(${layout.length}, minmax(0, 1fr))` }}
+                  style={{
+                    gridTemplateColumns: `repeat(${layout.length}, minmax(0, 1fr))`,
+                  }}
                 >
                   {layout.map((column, index) => (
                     <HoleBubble
@@ -1856,13 +2104,13 @@ function App() {
                       onPreview={handleManualCellSelection}
                       basePosition={{
                         hole: column.hole,
-                        tone: 'blow',
+                        tone: "blow",
                         slide: false,
                         note: column.blow,
                       }}
                       slidePosition={{
                         hole: column.hole,
-                        tone: 'blow',
+                        tone: "blow",
                         slide: true,
                         note: column.blowSlide,
                       }}
@@ -1872,63 +2120,102 @@ function App() {
                 </div>
               </div>
             </div>
-            <div className={activeSlide ? 'slider-lever active' : 'slider-lever'}>
+            <div
+              className={activeSlide ? "slider-lever active" : "slider-lever"}
+            >
               <div className="slider-knob"></div>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="autoplay-panel" aria-label={t('autoplayTitle')}>
+      <section className="autoplay-panel" aria-label={t("autoplayTitle")}>
         <div className="score-panel-shell">
           <div className="score-panel-launcher">
-            <div className="player-mode-tabs" role="tablist" aria-label={t('playerModeLabel')}>
+            <div
+              className="player-mode-tabs"
+              role="tablist"
+              aria-label={t("playerModeLabel")}
+            >
               <button
                 type="button"
                 role="tab"
-                aria-selected={playerMode === 'songs'}
-                className={playerMode === 'songs' ? 'player-mode-tab active' : 'player-mode-tab'}
-                onClick={() => handlePlayerModeChange('songs')}
+                aria-selected={playerMode === "songs"}
+                className={
+                  playerMode === "songs"
+                    ? "player-mode-tab active"
+                    : "player-mode-tab"
+                }
+                onClick={() => handlePlayerModeChange("songs")}
               >
-                {t('songsTab')}
+                {t("songsTab")}
               </button>
               <button
                 type="button"
                 role="tab"
-                aria-selected={playerMode === 'scales'}
-                className={playerMode === 'scales' ? 'player-mode-tab active' : 'player-mode-tab'}
-                onClick={() => handlePlayerModeChange('scales')}
+                aria-selected={playerMode === "scales"}
+                className={
+                  playerMode === "scales"
+                    ? "player-mode-tab active"
+                    : "player-mode-tab"
+                }
+                onClick={() => handlePlayerModeChange("scales")}
               >
-                {t('scalesTab')}
+                {t("scalesTab")}
               </button>
             </div>
 
-            <div className={scorePanelOpen ? 'score-panel-trigger active' : 'score-panel-trigger'}>
+            <div
+              className={
+                scorePanelOpen
+                  ? "score-panel-trigger active"
+                  : "score-panel-trigger"
+              }
+            >
               <span className="score-panel-trigger-copy">
-                <small>{playerMode === 'songs' ? t('songsTab') : t('scalesTab')}</small>
-                {playerMode === 'songs' ? renderSongSelect('home-song-select') : renderScaleSelect('home-song-select')}
+                <small>
+                  {playerMode === "songs" ? t("songsTab") : t("scalesTab")}
+                </small>
+                {playerMode === "songs"
+                  ? renderSongSelect("home-song-select")
+                  : renderScaleSelect("home-song-select")}
                 <div
                   key={`${currentLineIndex}-${lineMotion}`}
-                  className={`score-line-stack ${lineMotion !== 'idle' ? `line-${lineMotion}` : ''}`}
+                  className={`score-line-stack ${lineMotion !== "idle" ? `line-${lineMotion}` : ""}`}
                 >
                   {visibleScoreLines.map((line) => (
-                    <div key={line.lineIndex} className={`score-line-row ${line.position}`}>
-                      <em className="score-current-line">{`${t('line')} ${line.lineIndex + 1}`}</em>
+                    <div
+                      key={line.lineIndex}
+                      className={`score-line-row ${line.position}`}
+                    >
+                      <em className="score-current-line">{`${t("line")} ${line.lineIndex + 1}`}</em>
                       <span className="score-line-events">
                         {line.events.length > 0 ? (
                           line.events.map((event) => (
                             <button
                               key={event.id}
                               type="button"
-                              className={selectedSequenceEvent?.id === event.id ? 'score-event-chip active' : 'score-event-chip'}
-                              onClick={() => navigateAutoplayTo(transcribedSequence.findIndex((item) => item.id === event.id))}
+                              className={
+                                selectedSequenceEvent?.id === event.id
+                                  ? "score-event-chip active"
+                                  : "score-event-chip"
+                              }
+                              onClick={() =>
+                                navigateAutoplayTo(
+                                  transcribedSequence.findIndex(
+                                    (item) => item.id === event.id,
+                                  ),
+                                )
+                              }
                             >
-                              {event.type === 'rest' ? 'R' : event.note.label}
+                              {event.type === "rest" ? "R" : event.note.label}
                             </button>
                           ))
                         ) : (
                           <span className="score-event-chip muted">
-                            {line.text || currentLineText || t('autoplayFormat')}
+                            {line.text ||
+                              currentLineText ||
+                              t("autoplayFormat")}
                           </span>
                         )}
                       </span>
@@ -1936,7 +2223,7 @@ function App() {
                   ))}
                 </div>
               </span>
-              {playerMode === 'songs' ? (
+              {playerMode === "songs" ? (
                 <button
                   type="button"
                   className="load-notes-button"
@@ -1945,73 +2232,124 @@ function App() {
                   aria-controls="score-options-panel"
                 >
                   <span>+</span>
-                  {t('loadNewSong')}
+                  {t("loadNewSong")}
                 </button>
               ) : (
-                <span className="scale-practice-badge">{selectedScaleExercise.category}</span>
+                <span className="scale-practice-badge">
+                  {selectedScaleExercise.category}
+                </span>
               )}
             </div>
 
             <div className="score-playback-console">
               {transcribedSequence.length > 0 ? (
-                <div className="score-panel-mini-nav" aria-label={t('autoplayNavigation')}>
-                  <button type="button" className="mini-nav-button" onClick={() => navigateByLine(-1)} aria-label={t('prevLine')}>
+                <div
+                  className="score-panel-mini-nav"
+                  aria-label={t("autoplayNavigation")}
+                >
+                  <button
+                    type="button"
+                    className="mini-nav-button"
+                    onClick={() => navigateByLine(-1)}
+                    aria-label={t("prevLine")}
+                  >
                     «
                   </button>
-                  <button type="button" className="mini-nav-button" onClick={() => navigateByNote(-1)} aria-label={t('prevNote')}>
+                  <button
+                    type="button"
+                    className="mini-nav-button"
+                    onClick={() => navigateByNote(-1)}
+                    aria-label={t("prevNote")}
+                  >
                     ‹
                   </button>
                   <button
                     type="button"
-                    className={autoplayStatus === 'playing' ? 'mini-nav-button active' : 'mini-nav-button'}
-                    onClick={autoplayStatus === 'playing' ? pauseAutoplay : handleAutoplay}
-                    aria-label={autoplayStatus === 'playing' ? t('pause') : t('autoplayPlay')}
-                    aria-pressed={autoplayStatus === 'playing'}
+                    className={
+                      autoplayStatus === "playing"
+                        ? "mini-nav-button active"
+                        : "mini-nav-button"
+                    }
+                    onClick={
+                      autoplayStatus === "playing"
+                        ? pauseAutoplay
+                        : handleAutoplay
+                    }
+                    aria-label={
+                      autoplayStatus === "playing"
+                        ? t("pause")
+                        : t("autoplayPlay")
+                    }
+                    aria-pressed={autoplayStatus === "playing"}
                   >
-                    {autoplayStatus === 'playing' ? '❚❚' : '▶'}
+                    {autoplayStatus === "playing" ? "❚❚" : "▶"}
                   </button>
-                  <button type="button" className="mini-nav-button" onClick={() => navigateByNote(1)} aria-label={t('nextNote')}>
+                  <button
+                    type="button"
+                    className="mini-nav-button"
+                    onClick={() => navigateByNote(1)}
+                    aria-label={t("nextNote")}
+                  >
                     ›
                   </button>
-                  <button type="button" className="mini-nav-button" onClick={() => navigateByLine(1)} aria-label={t('nextLine')}>
+                  <button
+                    type="button"
+                    className="mini-nav-button"
+                    onClick={() => navigateByLine(1)}
+                    aria-label={t("nextLine")}
+                  >
                     »
                   </button>
                 </div>
               ) : null}
 
-              <div className="score-player-controls" role="group" aria-label={t('autoplayTitle')}>
+              <div
+                className="score-player-controls"
+                role="group"
+                aria-label={t("autoplayTitle")}
+              >
                 <label className="player-setting">
-                  <span>{playerMode === 'scales' ? t('scaleTonic') : t('autoplaySourceKey')}</span>
+                  <span>
+                    {playerMode === "scales"
+                      ? t("scaleTonic")
+                      : t("autoplaySourceKey")}
+                  </span>
                   <CustomSelect
                     value={sourceKey}
-                    onChange={(nextValue) => handleSourceKeyChange({ target: { value: nextValue } })}
+                    onChange={(nextValue) =>
+                      handleSourceKeyChange({ target: { value: nextValue } })
+                    }
                     options={KEY_OPTIONS.map((key) => ({
                       value: key.root,
-                      label: `${key.label} ${t('major')}`,
+                      label: `${key.label} ${t("major")}`,
                     }))}
-                    ariaLabel={playerMode === 'scales' ? t('scaleTonic') : t('autoplaySourceKey')}
+                    ariaLabel={
+                      playerMode === "scales"
+                        ? t("scaleTonic")
+                        : t("autoplaySourceKey")
+                    }
                   />
                 </label>
 
                 <label className="player-setting">
-                  <span>{t('autoplayTargetKey')}</span>
+                  <span>{t("autoplayTargetKey")}</span>
                   <CustomSelect
                     value={targetKey}
                     onChange={(nextValue) => {
-                      const nextKey = Number(nextValue)
-                      setTargetKey(nextKey)
-                      setSelectedKey(nextKey)
+                      const nextKey = Number(nextValue);
+                      setTargetKey(nextKey);
+                      setSelectedKey(nextKey);
                     }}
                     options={KEY_OPTIONS.map((key) => ({
                       value: key.root,
-                      label: `${key.label} ${t('major')}`,
+                      label: `${key.label} ${t("major")}`,
                     }))}
-                    ariaLabel={t('autoplayTargetKey')}
+                    ariaLabel={t("autoplayTargetKey")}
                   />
                 </label>
 
                 <label className="player-setting tempo-setting">
-                  <span>{t('autoplayTempo')}</span>
+                  <span>{t("autoplayTempo")}</span>
                   <input
                     type="number"
                     min="40"
@@ -2025,174 +2363,244 @@ function App() {
           </div>
 
           {scorePanelOpen ? (
-              <div
-                id="score-options-panel"
-                className="score-panel drawer-open"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div className="score-panel-header">
-                  <div>
-                    <h2>{t('loadNewSong')}</h2>
-                  </div>
-                  <div className="score-panel-actions">
-                    <div ref={scoreHelpRef} className="score-panel-info">
-                      <button
-                        type="button"
-                        className="score-panel-info-toggle"
-                        aria-label={t('autoplayInfoLabel')}
-                        onClick={() => setScoreHelpOpen((current) => !current)}
-                      >
-                        i
-                      </button>
-                      {scoreHelpOpen ? (
-                        <div className="score-panel-info-card">
-                          <strong>{t('autoplayGuideTitle')}</strong>
-                          <p>{t('autoplayGuideIntro')}</p>
-                          <ol className="score-guide-steps">
-                            <li>{t('autoplayGuideStep1')}</li>
-                            <li>{t('autoplayGuideStep2')}</li>
-                            <li>{t('autoplayGuideStep3')}</li>
-                          </ol>
-                          <div className="score-guide-prompt">
-                            <div className="score-guide-prompt-head">
-                              <span>{t('autoplayGuidePromptLabel')}</span>
-                              <button type="button" className="copy-prompt-button" onClick={handleCopyPrompt}>
-                                {promptCopied ? t('copied') : t('copy')}
-                              </button>
-                            </div>
-                            <pre>{t('autoplayGuidePrompt')}</pre>
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                    <button
-                      type="button"
-                      className="score-panel-close"
-                      onClick={closeScorePanel}
-                      aria-label={t('closePanel')}
-                    >
-                      ×
-                    </button>
-                  </div>
+            <div
+              id="score-options-panel"
+              className="score-panel drawer-open"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="score-panel-header">
+                <div>
+                  <h2>{t("loadNewSong")}</h2>
                 </div>
-
-                <div className="autoplay-grid">
-                  <div className="score-input-stack">
-                    <label className="autoplay-score song-title-field">
-                      <span>{t('songTitle')}</span>
-                      <input
-                        type="text"
-                        value={songTitle}
-                        onChange={(event) => setSongTitle(event.target.value)}
-                        placeholder={t('untitledSong')}
-                      />
-                    </label>
-                    <label className="autoplay-score song-title-field">
-                      <span>{t('songCategory')}</span>
-                      <input
-                        type="text"
-                        value={songCategory}
-                        onChange={(event) => setSongCategory(event.target.value)}
-                        placeholder={t('uncategorized')}
-                      />
-                    </label>
-                    <label className="autoplay-score">
-                      <span>{t('autoplayScore')}</span>
-                      <textarea
-                        value={scoreText}
-                        onChange={(event) => setScoreText(event.target.value)}
-                        placeholder={t('autoplayPlaceholder')}
-                      />
-                    </label>
+                <div className="score-panel-actions">
+                  <div ref={scoreHelpRef} className="score-panel-info">
                     <button
                       type="button"
-                      className="score-guide-button"
+                      className="score-panel-info-toggle"
+                      aria-label={t("autoplayInfoLabel")}
                       onClick={() => setScoreHelpOpen((current) => !current)}
                     >
-                      {t('autoplayGuideButton')}
+                      i
                     </button>
-
-                    <section className="song-library" aria-label={t('playlist')}>
-                      <div className="song-library-head">
-                        <strong>{t('playlist')}</strong>
-                        <button type="button" className="save-song-button" onClick={saveCurrentSong}>
-                          {t('saveSong')}
-                        </button>
-                      </div>
-                      {songLibrary.length > 0 ? (
-                        <div className="song-library-list">
-                          {songLibrary.map((song) => (
-                            <article key={song.id} className="song-library-item">
-                              <button type="button" className="song-library-load" onClick={() => loadSong(song)}>
-                                <strong>{song.title}</strong>
-                                <span>{`${song.category || t('uncategorized')} · ${song.tempo} bpm · ${KEY_OPTIONS.find((key) => key.root === song.targetKey)?.label ?? 'C'}`}</span>
-                              </button>
-                              <button type="button" className="song-icon-button" onClick={() => loadSong(song)} aria-label={t('editSong')}>
-                                ✎
-                              </button>
-                              <button type="button" className="song-icon-button danger" onClick={() => deleteSong(song.id)} aria-label={t('deleteSong')}>
-                                ×
-                              </button>
-                            </article>
-                          ))}
+                    {scoreHelpOpen ? (
+                      <div className="score-panel-info-card">
+                        <strong>{t("autoplayGuideTitle")}</strong>
+                        <p>{t("autoplayGuideIntro")}</p>
+                        <ol className="score-guide-steps">
+                          <li>{t("autoplayGuideStep1")}</li>
+                          <li>{t("autoplayGuideStep2")}</li>
+                          <li>{t("autoplayGuideStep3")}</li>
+                        </ol>
+                        <div className="score-guide-prompt">
+                          <div className="score-guide-prompt-head">
+                            <span>{t("autoplayGuidePromptLabel")}</span>
+                            <button
+                              type="button"
+                              className="copy-prompt-button"
+                              onClick={handleCopyPrompt}
+                            >
+                              {promptCopied ? t("copied") : t("copy")}
+                            </button>
+                          </div>
+                          <pre>{t("autoplayGuidePrompt")}</pre>
                         </div>
-                      ) : (
-                        <p className="song-library-empty">{t('emptyPlaylist')}</p>
-                      )}
-                    </section>
+                      </div>
+                    ) : null}
                   </div>
-
-                </div>
-
-                <div className="autoplay-panel-footer">
-                  <div className="autoplay-meta">
-                    <strong>{savedLabel}</strong>
-                    <span>{`${t('line')} ${currentLineLabel} · ${currentLineText || t('autoplayFormat')}`}</span>
-                  </div>
-
-                  <button type="button" className="save-song-button wide" onClick={saveCurrentSong}>
-                    {t('saveSong')}
+                  <button
+                    type="button"
+                    className="score-panel-close"
+                    onClick={closeScorePanel}
+                    aria-label={t("closePanel")}
+                  >
+                    ×
                   </button>
-
-                  <div className="autoplay-nav-row">
-                    <button type="button" className="secondary-button" onClick={() => navigateByLine(-1)} aria-label={t('prevLine')}>
-                      «
-                    </button>
-                    <button type="button" className="secondary-button" onClick={() => navigateByNote(-1)} aria-label={t('prevNote')}>
-                      ‹
-                    </button>
-                    <button
-                      type="button"
-                      className={autoplayStatus === 'playing' ? 'secondary-button active' : 'secondary-button'}
-                      onClick={autoplayStatus === 'playing' ? pauseAutoplay : handleAutoplay}
-                      aria-label={autoplayStatus === 'playing' ? t('pause') : t('autoplayPlay')}
-                      aria-pressed={autoplayStatus === 'playing'}
-                    >
-                      {autoplayStatus === 'playing' ? '❚❚' : '▶'}
-                    </button>
-                    <button type="button" className="secondary-button" onClick={() => navigateByNote(1)} aria-label={t('nextNote')}>
-                      ›
-                    </button>
-                    <button type="button" className="secondary-button" onClick={() => navigateByLine(1)} aria-label={t('nextLine')}>
-                      »
-                    </button>
-                  </div>
-
-                  <div className="autoplay-action-row">
-                    {autoplayStatus === 'playing' || autoplayStatus === 'paused' ? (
-                      <button type="button" className="primary-button autoplay-single-action" onClick={() => stopAutoplay({ keepSelection: false })}>
-                        <span className="button-icon" aria-hidden="true">■</span>
-                        <span>{t('stop')}</span>
-                      </button>
-                    ) : (
-                      <button type="button" className="primary-button autoplay-single-action" onClick={handleAutoplay}>
-                        <span className="button-icon" aria-hidden="true">▶</span>
-                        <span>{t('autoplayPlay')}</span>
-                      </button>
-                    )}
-                  </div>
                 </div>
               </div>
+
+              <div className="autoplay-grid">
+                <div className="score-input-stack">
+                  <label className="autoplay-score song-title-field">
+                    <span>{t("songTitle")}</span>
+                    <input
+                      type="text"
+                      value={songTitle}
+                      onChange={(event) => setSongTitle(event.target.value)}
+                      placeholder={t("untitledSong")}
+                    />
+                  </label>
+                  <label className="autoplay-score song-title-field">
+                    <span>{t("songCategory")}</span>
+                    <input
+                      type="text"
+                      value={songCategory}
+                      onChange={(event) => setSongCategory(event.target.value)}
+                      placeholder={t("uncategorized")}
+                    />
+                  </label>
+                  <label className="autoplay-score">
+                    <span>{t("autoplayScore")}</span>
+                    <textarea
+                      value={scoreText}
+                      onChange={(event) => setScoreText(event.target.value)}
+                      placeholder={t("autoplayPlaceholder")}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="score-guide-button"
+                    onClick={() => setScoreHelpOpen((current) => !current)}
+                  >
+                    {t("autoplayGuideButton")}
+                  </button>
+
+                  <section className="song-library" aria-label={t("playlist")}>
+                    <div className="song-library-head">
+                      <strong>{t("playlist")}</strong>
+                      <button
+                        type="button"
+                        className="save-song-button"
+                        onClick={saveCurrentSong}
+                      >
+                        {t("saveSong")}
+                      </button>
+                    </div>
+                    {songLibrary.length > 0 ? (
+                      <div className="song-library-list">
+                        {songLibrary.map((song) => (
+                          <article key={song.id} className="song-library-item">
+                            <button
+                              type="button"
+                              className="song-library-load"
+                              onClick={() => loadSong(song)}
+                            >
+                              <strong>{song.title}</strong>
+                              <span>{`${song.category || t("uncategorized")} · ${song.tempo} bpm · ${KEY_OPTIONS.find((key) => key.root === song.targetKey)?.label ?? "C"}`}</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="song-icon-button"
+                              onClick={() => loadSong(song)}
+                              aria-label={t("editSong")}
+                            >
+                              ✎
+                            </button>
+                            <button
+                              type="button"
+                              className="song-icon-button danger"
+                              onClick={() => deleteSong(song.id)}
+                              aria-label={t("deleteSong")}
+                            >
+                              ×
+                            </button>
+                          </article>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="song-library-empty">{t("emptyPlaylist")}</p>
+                    )}
+                  </section>
+                </div>
+              </div>
+
+              <div className="autoplay-panel-footer">
+                <div className="autoplay-meta">
+                  <strong>{savedLabel}</strong>
+                  <span>{`${t("line")} ${currentLineLabel} · ${currentLineText || t("autoplayFormat")}`}</span>
+                </div>
+
+                <button
+                  type="button"
+                  className="save-song-button wide"
+                  onClick={saveCurrentSong}
+                >
+                  {t("saveSong")}
+                </button>
+
+                <div className="autoplay-nav-row">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => navigateByLine(-1)}
+                    aria-label={t("prevLine")}
+                  >
+                    «
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => navigateByNote(-1)}
+                    aria-label={t("prevNote")}
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    className={
+                      autoplayStatus === "playing"
+                        ? "secondary-button active"
+                        : "secondary-button"
+                    }
+                    onClick={
+                      autoplayStatus === "playing"
+                        ? pauseAutoplay
+                        : handleAutoplay
+                    }
+                    aria-label={
+                      autoplayStatus === "playing"
+                        ? t("pause")
+                        : t("autoplayPlay")
+                    }
+                    aria-pressed={autoplayStatus === "playing"}
+                  >
+                    {autoplayStatus === "playing" ? "❚❚" : "▶"}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => navigateByNote(1)}
+                    aria-label={t("nextNote")}
+                  >
+                    ›
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => navigateByLine(1)}
+                    aria-label={t("nextLine")}
+                  >
+                    »
+                  </button>
+                </div>
+
+                <div className="autoplay-action-row">
+                  {autoplayStatus === "playing" ||
+                  autoplayStatus === "paused" ? (
+                    <button
+                      type="button"
+                      className="primary-button autoplay-single-action"
+                      onClick={() => stopAutoplay({ keepSelection: false })}
+                    >
+                      <span className="button-icon" aria-hidden="true">
+                        ■
+                      </span>
+                      <span>{t("stop")}</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="primary-button autoplay-single-action"
+                      onClick={handleAutoplay}
+                    >
+                      <span className="button-icon" aria-hidden="true">
+                        ▶
+                      </span>
+                      <span>{t("autoplayPlay")}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
           ) : null}
         </div>
 
@@ -2201,21 +2609,25 @@ function App() {
 
       <section className="detector-footer">
         <label className="input-select">
-          <span>{t('mic')}</span>
+          <span>{t("mic")}</span>
           <CustomSelect
             value={selectedInputId}
-            onChange={(nextValue) => handleInputChange({ target: { value: nextValue } })}
-            disabled={micState === 'requesting'}
+            onChange={(nextValue) =>
+              handleInputChange({ target: { value: nextValue } })
+            }
+            disabled={micState === "requesting"}
             options={[
-              { value: 'default', label: t('defaultMic') },
+              { value: "default", label: t("defaultMic") },
               ...audioInputs
-                .filter((device) => device.deviceId && device.deviceId !== 'default')
+                .filter(
+                  (device) => device.deviceId && device.deviceId !== "default",
+                )
                 .map((device, index) => ({
-                  value: device.deviceId || 'default',
-                  label: device.label || `${t('mic')} ${index + 1}`,
+                  value: device.deviceId || "default",
+                  label: device.label || `${t("mic")} ${index + 1}`,
                 })),
             ]}
-            ariaLabel={t('mic')}
+            ariaLabel={t("mic")}
           />
         </label>
 
@@ -2235,35 +2647,53 @@ function App() {
         <div className="detector-topline">
           <span className={`status-dot status-${micState}`}></span>
           <span>
-            {micState === 'listening' && t('listening')}
-            {micState === 'requesting' && t('requesting')}
-            {micState === 'idle' && t('idle')}
-            {micState === 'error' && t('error')}
+            {micState === "listening" && t("listening")}
+            {micState === "requesting" && t("requesting")}
+            {micState === "idle" && t("idle")}
+            {micState === "error" && t("error")}
           </span>
         </div>
 
         <div className="detector-actions compact-actions">
-          {micState === 'listening' ? (
-            <button type="button" className="primary-button" onClick={stopListening}>
-              <span className="button-icon" aria-hidden="true">■</span>
-              <span>{t('stop')}</span>
+          {micState === "listening" ? (
+            <button
+              type="button"
+              className="primary-button"
+              onClick={stopListening}
+            >
+              <span className="button-icon" aria-hidden="true">
+                ■
+              </span>
+              <span>{t("stop")}</span>
             </button>
           ) : (
             <button
               type="button"
               className="primary-button"
               onClick={() => startListening()}
-              disabled={micState === 'requesting'}
+              disabled={micState === "requesting"}
             >
-              <span className="button-icon" aria-hidden="true">◉</span>
-              <span>{micState === 'requesting' ? t('permission') : t('listen')}</span>
+              <span className="button-icon" aria-hidden="true">
+                ◉
+              </span>
+              <span>
+                {micState === "requesting" ? t("permission") : t("listen")}
+              </span>
             </button>
           )}
           {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
         </div>
       </section>
+
+      <p className="app-credit">
+        <span>{t("developedBy")}</span>
+        <span> · </span>
+        <a href="mailto:emilrichardo@gmail.com">emilrichardo@gmail.com</a>
+        <span> · </span>
+        <a href="tel:+543855963936">+54 3855963936</a>
+      </p>
     </main>
-  )
+  );
 }
 
 function HoleBubble({
@@ -2280,24 +2710,39 @@ function HoleBubble({
   slidePosition,
   showOptions = false,
 }) {
-  const active = mode !== null
-  const isSlide = mode === 'slide'
-  const displayedNote = isSlide ? slideNote : note
-  const bubbleClass = `hole-bubble ${tone} ${active ? 'active' : ''} ${isSlide ? 'slide-on' : ''} ${altered ? 'altered' : ''}`.trim()
-  const numberClass = lowHole ? 'hole-number low-hole' : 'hole-number'
+  const active = mode !== null;
+  const isSlide = mode === "slide";
+  const displayedNote = isSlide ? slideNote : note;
+  const bubbleClass =
+    `hole-bubble ${tone} ${active ? "active" : ""} ${isSlide ? "slide-on" : ""} ${altered ? "altered" : ""}`.trim();
+  const numberClass = lowHole ? "hole-number low-hole" : "hole-number";
 
   function handleClick() {
-    onPreview?.(basePosition ?? { hole, tone, slide: false, note })
+    onPreview?.(basePosition ?? { hole, tone, slide: false, note });
   }
 
   return (
     <span className="hole-bubble-wrap">
       {showOptions ? (
-        <span className={`cell-option-popover ${tone === 'draw' ? 'up' : 'down'}`}>
-          <button type="button" onClick={() => onPreview?.(basePosition ?? { hole, tone, slide: false, note })}>
+        <span
+          className={`cell-option-popover ${tone === "draw" ? "up" : "down"}`}
+        >
+          <button
+            type="button"
+            onClick={() =>
+              onPreview?.(basePosition ?? { hole, tone, slide: false, note })
+            }
+          >
             {note.shortLabel}
           </button>
-          <button type="button" onClick={() => onPreview?.(slidePosition ?? { hole, tone, slide: true, note: slideNote })}>
+          <button
+            type="button"
+            onClick={() =>
+              onPreview?.(
+                slidePosition ?? { hole, tone, slide: true, note: slideNote },
+              )
+            }
+          >
             BTN {slideNote.shortLabel}
           </button>
         </span>
@@ -2306,17 +2751,15 @@ function HoleBubble({
         type="button"
         className={bubbleClass}
         onClick={handleClick}
-        title={`Click: ${displayedNote.label}${isSlide ? ' · BTN' : ''}`}
-        aria-label={`${tone} ${hole}. ${displayedNote.label}${isSlide ? '. Boton presionado' : ''}`}
+        title={`Click: ${displayedNote.label}${isSlide ? " · BTN" : ""}`}
+        aria-label={`${tone} ${hole}. ${displayedNote.label}${isSlide ? ". Boton presionado" : ""}`}
       >
         {showNumber ? <span className={numberClass}>{hole}</span> : null}
         <strong>{displayedNote.shortLabel}</strong>
-        {isSlide ? (
-          <em className="slide-flag">BTN</em>
-        ) : null}
+        {isSlide ? <em className="slide-flag">BTN</em> : null}
       </button>
     </span>
-  )
+  );
 }
 
 function CustomSelect({
@@ -2324,53 +2767,59 @@ function CustomSelect({
   onChange,
   options,
   groups,
-  className = '',
+  className = "",
   ariaLabel,
   disabled = false,
 }) {
-  const [open, setOpen] = useState(false)
-  const rootRef = useRef(null)
-  const listboxId = useId()
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+  const listboxId = useId();
   const normalizedGroups = useMemo(() => {
     if (groups?.length) {
-      return groups
+      return groups;
     }
 
-    return [{ label: null, options: options ?? [] }]
-  }, [groups, options])
-  const allOptions = useMemo(() => flattenSelectGroups(normalizedGroups), [normalizedGroups])
-  const selectedOption = allOptions.find((option) => String(option.value) === String(value)) ?? allOptions[0] ?? null
+    return [{ label: null, options: options ?? [] }];
+  }, [groups, options]);
+  const allOptions = useMemo(
+    () => flattenSelectGroups(normalizedGroups),
+    [normalizedGroups],
+  );
+  const selectedOption =
+    allOptions.find((option) => String(option.value) === String(value)) ??
+    allOptions[0] ??
+    null;
 
   useEffect(() => {
     if (!open) {
-      return undefined
+      return undefined;
     }
 
     function handlePointerDown(event) {
       if (rootRef.current && !rootRef.current.contains(event.target)) {
-        setOpen(false)
+        setOpen(false);
       }
     }
 
     function handleEscape(event) {
-      if (event.key === 'Escape') {
-        setOpen(false)
+      if (event.key === "Escape") {
+        setOpen(false);
       }
     }
 
-    document.addEventListener('mousedown', handlePointerDown)
-    document.addEventListener('keydown', handleEscape)
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
 
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown)
-      document.removeEventListener('keydown', handleEscape)
-    }
-  }, [open])
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [open]);
 
   return (
     <div
       ref={rootRef}
-      className={`custom-select ${open ? 'open' : ''} ${disabled ? 'disabled' : ''} ${className}`.trim()}
+      className={`custom-select ${open ? "open" : ""} ${disabled ? "disabled" : ""} ${className}`.trim()}
     >
       <button
         type="button"
@@ -2382,20 +2831,32 @@ function CustomSelect({
         disabled={disabled}
         onClick={() => setOpen((current) => !current)}
       >
-        <span className="custom-select-value">{selectedOption?.label ?? ''}</span>
+        <span className="custom-select-value">
+          {selectedOption?.label ?? ""}
+        </span>
         <span className="custom-select-chevron" aria-hidden="true">
           ▾
         </span>
       </button>
 
       {open ? (
-        <div id={listboxId} className="custom-select-menu" role="listbox" aria-label={ariaLabel}>
+        <div
+          id={listboxId}
+          className="custom-select-menu"
+          role="listbox"
+          aria-label={ariaLabel}
+        >
           {normalizedGroups.map((group, groupIndex) => (
-            <div key={`${group.label ?? 'group'}-${groupIndex}`} className="custom-select-group">
-              {group.label ? <div className="custom-select-group-label">{group.label}</div> : null}
+            <div
+              key={`${group.label ?? "group"}-${groupIndex}`}
+              className="custom-select-group"
+            >
+              {group.label ? (
+                <div className="custom-select-group-label">{group.label}</div>
+              ) : null}
               <div className="custom-select-options">
                 {group.options.map((option) => {
-                  const isSelected = String(option.value) === String(value)
+                  const isSelected = String(option.value) === String(value);
 
                   return (
                     <button
@@ -2403,20 +2864,27 @@ function CustomSelect({
                       type="button"
                       role="option"
                       aria-selected={isSelected}
-                      className={isSelected ? 'custom-select-option selected' : 'custom-select-option'}
+                      className={
+                        isSelected
+                          ? "custom-select-option selected"
+                          : "custom-select-option"
+                      }
                       onClick={() => {
-                        onChange(option.value)
-                        setOpen(false)
+                        onChange(option.value);
+                        setOpen(false);
                       }}
                     >
                       <span>{option.label}</span>
                       {isSelected ? (
-                        <span className="custom-select-check" aria-hidden="true">
+                        <span
+                          className="custom-select-check"
+                          aria-hidden="true"
+                        >
                           •
                         </span>
                       ) : null}
                     </button>
-                  )
+                  );
                 })}
               </div>
             </div>
@@ -2424,7 +2892,7 @@ function CustomSelect({
         </div>
       ) : null}
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
