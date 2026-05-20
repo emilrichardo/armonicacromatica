@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { PitchDetector } from 'pitchy'
 import './App.css'
 import {
@@ -204,6 +204,14 @@ function normalizeSongRecord(song) {
     ...song,
     category: song.category?.trim() || DEFAULT_USER_CATEGORY,
   }
+}
+
+function safeTrim(value) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function flattenSelectGroups(groups) {
+  return groups.flatMap((group) => group.options)
 }
 
 function groupItemsByCategory(items) {
@@ -1067,8 +1075,8 @@ function App() {
   }
 
   function saveCurrentSong() {
-    const normalizedTitle = songTitle.trim() || t('untitledSong')
-    const normalizedCategory = songCategory.trim() || t('uncategorized')
+    const normalizedTitle = safeTrim(songTitle) || t('untitledSong')
+    const normalizedCategory = safeTrim(songCategory) || t('uncategorized')
     const songPayload = {
       id: `${Date.now()}`,
       title: normalizedTitle,
@@ -1103,9 +1111,9 @@ function App() {
     stopAutoplay({ keepSelection: false })
     setManualSelection(null)
     setManualOptionsKey('')
-    setSongTitle(song.title)
+    setSongTitle(song.title ?? '')
     setSongCategory(song.category?.trim() || t('uncategorized'))
-    setScoreText(song.scoreText)
+    setScoreText(song.scoreText ?? '')
     setSourceKey(nextSourceKey)
     setTargetKey(nextTargetKey)
     setSelectedKey(nextTargetKey)
@@ -1231,46 +1239,63 @@ function App() {
   }
 
   function renderSongSelect(className = '') {
+    const groups = []
+
+    if (selectedSongValue === 'current') {
+      groups.push({
+        label: null,
+        options: [{ value: 'current', label: safeTrim(songTitle) || t('untitledSong') }],
+      })
+    }
+
+    defaultSongGroups.forEach((group) => {
+      groups.push({
+        label: `${t('defaultSongs')} · ${group.category}`,
+        options: group.items.map((song) => ({
+          value: `default:${song.id}`,
+          label: song.title,
+        })),
+      })
+    })
+
+    savedSongGroups.forEach((group) => {
+      groups.push({
+        label: `${t('savedSongs')} · ${group.category}`,
+        options: group.items.map((song) => ({
+          value: `saved:${song.id}`,
+          label: song.title,
+        })),
+      })
+    })
+
     return (
-      <select className={className} value={selectedSongValue} onChange={handleSongSelect}>
-        {selectedSongValue === 'current' ? (
-          <option value="current">{songTitle.trim() || t('untitledSong')}</option>
-        ) : null}
-        {defaultSongGroups.map((group) => (
-          <optgroup key={`default-${group.category}`} label={`${t('defaultSongs')} · ${group.category}`}>
-            {group.items.map((song) => (
-              <option key={song.id} value={`default:${song.id}`}>
-                {song.title}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-        {savedSongGroups.map((group) => (
-          <optgroup key={`saved-${group.category}`} label={`${t('savedSongs')} · ${group.category}`}>
-            {group.items.map((song) => (
-              <option key={song.id} value={`saved:${song.id}`}>
-                {song.title}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
+      <CustomSelect
+        className={className}
+        value={selectedSongValue}
+        groups={groups}
+        onChange={(nextValue) => handleSongSelect({ target: { value: nextValue } })}
+        ariaLabel={t('songTitle')}
+      />
     )
   }
 
   function renderScaleSelect(className = '') {
+    const groups = scaleGroups.map((group) => ({
+      label: group.category,
+      options: group.items.map((pattern) => ({
+        value: pattern.id,
+        label: pattern.name,
+      })),
+    }))
+
     return (
-      <select className={className} value={selectedScalePatternId} onChange={handleScalePatternSelect}>
-        {scaleGroups.map((group) => (
-          <optgroup key={group.category} label={group.category}>
-            {group.items.map((pattern) => (
-              <option key={pattern.id} value={pattern.id}>
-                {pattern.name}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
+      <CustomSelect
+        className={className}
+        value={selectedScalePatternId}
+        groups={groups}
+        onChange={(nextValue) => handleScalePatternSelect({ target: { value: nextValue } })}
+        ariaLabel={t('scalesTab')}
+      />
     )
   }
 
@@ -1283,26 +1308,17 @@ function App() {
     setManualSelection(null)
     setManualOptionsKey('')
     scorePanelSnapshotRef.current = {
-      songTitle: songTitle.trim() ? songTitle : DEFAULT_SONG_TITLE,
-      songCategory: songCategory.trim() ? songCategory : DEFAULT_SONG_CATEGORY,
-      scoreText: scoreText.trim() ? scoreText : DEFAULT_SCORE_TEXT,
+      songTitle: songTitle ?? '',
+      songCategory: songCategory ?? '',
+      scoreText: scoreText ?? '',
       sourceKey,
       targetKey,
       tempo,
       instrument,
     }
 
-    if (!scoreText.trim()) {
-      setScoreText(DEFAULT_SCORE_TEXT)
-    }
-
-    if (!songTitle.trim()) {
-      setSongTitle(DEFAULT_SONG_TITLE)
-    }
-
-    if (!songCategory.trim()) {
-      setSongCategory(DEFAULT_SONG_CATEGORY)
-    }
+    setSongTitle('')
+    setScoreText('')
 
     setScorePanelOpen(true)
   }
@@ -1310,7 +1326,7 @@ function App() {
   function closeScorePanel() {
     const snapshot = scorePanelSnapshotRef.current
 
-    if (!scoreText.trim() && snapshot) {
+    if (!safeTrim(scoreText) && snapshot) {
       setSongTitle(snapshot.songTitle)
       setSongCategory(snapshot.songCategory)
       setScoreText(snapshot.scoreText)
@@ -1686,16 +1702,15 @@ function App() {
         <div className="nav-controls">
           <label className="input-select key-select">
             <span>{t('key')}</span>
-            <select
+            <CustomSelect
               value={selectedKey}
-              onChange={(event) => setSelectedKey(Number(event.target.value))}
-            >
-              {KEY_OPTIONS.map((key) => (
-                <option key={key.label} value={key.root}>
-                  {key.label} {t('major')}
-                </option>
-              ))}
-            </select>
+              onChange={(nextValue) => setSelectedKey(Number(nextValue))}
+              options={KEY_OPTIONS.map((key) => ({
+                value: key.root,
+                label: `${key.label} ${t('major')}`,
+              }))}
+              ariaLabel={t('key')}
+            />
           </label>
 
           <div className="instrument-toggle" role="tablist" aria-label={t('harmonicaType')}>
@@ -1718,13 +1733,15 @@ function App() {
         <div className="menu-controls">
           <label className="input-select locale-select">
             <span>{t('language')}</span>
-            <select value={locale} onChange={(event) => setLocale(event.target.value)}>
-              {SUPPORTED_LOCALES.map((supportedLocale) => (
-                <option key={supportedLocale} value={supportedLocale}>
-                  {LOCALE_LABELS[supportedLocale] ?? supportedLocale.toUpperCase()}
-                </option>
-              ))}
-            </select>
+            <CustomSelect
+              value={locale}
+              onChange={setLocale}
+              options={SUPPORTED_LOCALES.map((supportedLocale) => ({
+                value: supportedLocale,
+                label: LOCALE_LABELS[supportedLocale] ?? supportedLocale.toUpperCase(),
+              }))}
+              ariaLabel={t('language')}
+            />
           </label>
 
           <button
@@ -1965,31 +1982,32 @@ function App() {
               <div className="score-player-controls" role="group" aria-label={t('autoplayTitle')}>
                 <label className="player-setting">
                   <span>{playerMode === 'scales' ? t('scaleTonic') : t('autoplaySourceKey')}</span>
-                  <select value={sourceKey} onChange={handleSourceKeyChange}>
-                    {KEY_OPTIONS.map((key) => (
-                      <option key={`player-source-${key.label}`} value={key.root}>
-                        {key.label} {t('major')}
-                      </option>
-                    ))}
-                  </select>
+                  <CustomSelect
+                    value={sourceKey}
+                    onChange={(nextValue) => handleSourceKeyChange({ target: { value: nextValue } })}
+                    options={KEY_OPTIONS.map((key) => ({
+                      value: key.root,
+                      label: `${key.label} ${t('major')}`,
+                    }))}
+                    ariaLabel={playerMode === 'scales' ? t('scaleTonic') : t('autoplaySourceKey')}
+                  />
                 </label>
 
                 <label className="player-setting">
                   <span>{t('autoplayTargetKey')}</span>
-                  <select
+                  <CustomSelect
                     value={targetKey}
-                    onChange={(event) => {
-                      const nextKey = Number(event.target.value)
+                    onChange={(nextValue) => {
+                      const nextKey = Number(nextValue)
                       setTargetKey(nextKey)
                       setSelectedKey(nextKey)
                     }}
-                  >
-                    {KEY_OPTIONS.map((key) => (
-                      <option key={`player-target-${key.label}`} value={key.root}>
-                        {key.label} {t('major')}
-                      </option>
-                    ))}
-                  </select>
+                    options={KEY_OPTIONS.map((key) => ({
+                      value: key.root,
+                      label: `${key.label} ${t('major')}`,
+                    }))}
+                    ariaLabel={t('autoplayTargetKey')}
+                  />
                 </label>
 
                 <label className="player-setting tempo-setting">
@@ -2062,7 +2080,12 @@ function App() {
                   <div className="score-input-stack">
                     <label className="autoplay-score song-title-field">
                       <span>{t('songTitle')}</span>
-                      {renderSongSelect()}
+                      <input
+                        type="text"
+                        value={songTitle}
+                        onChange={(event) => setSongTitle(event.target.value)}
+                        placeholder={t('untitledSong')}
+                      />
                     </label>
                     <label className="autoplay-score song-title-field">
                       <span>{t('songCategory')}</span>
@@ -2179,20 +2202,21 @@ function App() {
       <section className="detector-footer">
         <label className="input-select">
           <span>{t('mic')}</span>
-          <select
+          <CustomSelect
             value={selectedInputId}
-            onChange={handleInputChange}
+            onChange={(nextValue) => handleInputChange({ target: { value: nextValue } })}
             disabled={micState === 'requesting'}
-          >
-            <option value="default">{t('defaultMic')}</option>
-            {audioInputs
-              .filter((device) => device.deviceId && device.deviceId !== 'default')
-              .map((device, index) => (
-                <option key={device.deviceId || `device-${index}`} value={device.deviceId || 'default'}>
-                  {device.label || `${t('mic')} ${index + 1}`}
-                </option>
-              ))}
-          </select>
+            options={[
+              { value: 'default', label: t('defaultMic') },
+              ...audioInputs
+                .filter((device) => device.deviceId && device.deviceId !== 'default')
+                .map((device, index) => ({
+                  value: device.deviceId || 'default',
+                  label: device.label || `${t('mic')} ${index + 1}`,
+                })),
+            ]}
+            ariaLabel={t('mic')}
+          />
         </label>
 
         <div className="level-panel compact-level">
@@ -2292,6 +2316,114 @@ function HoleBubble({
         ) : null}
       </button>
     </span>
+  )
+}
+
+function CustomSelect({
+  value,
+  onChange,
+  options,
+  groups,
+  className = '',
+  ariaLabel,
+  disabled = false,
+}) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef(null)
+  const listboxId = useId()
+  const normalizedGroups = useMemo(() => {
+    if (groups?.length) {
+      return groups
+    }
+
+    return [{ label: null, options: options ?? [] }]
+  }, [groups, options])
+  const allOptions = useMemo(() => flattenSelectGroups(normalizedGroups), [normalizedGroups])
+  const selectedOption = allOptions.find((option) => String(option.value) === String(value)) ?? allOptions[0] ?? null
+
+  useEffect(() => {
+    if (!open) {
+      return undefined
+    }
+
+    function handlePointerDown(event) {
+      if (rootRef.current && !rootRef.current.contains(event.target)) {
+        setOpen(false)
+      }
+    }
+
+    function handleEscape(event) {
+      if (event.key === 'Escape') {
+        setOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('keydown', handleEscape)
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [open])
+
+  return (
+    <div
+      ref={rootRef}
+      className={`custom-select ${open ? 'open' : ''} ${disabled ? 'disabled' : ''} ${className}`.trim()}
+    >
+      <button
+        type="button"
+        className="custom-select-trigger"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listboxId}
+        aria-label={ariaLabel}
+        disabled={disabled}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span className="custom-select-value">{selectedOption?.label ?? ''}</span>
+        <span className="custom-select-chevron" aria-hidden="true">
+          ▾
+        </span>
+      </button>
+
+      {open ? (
+        <div id={listboxId} className="custom-select-menu" role="listbox" aria-label={ariaLabel}>
+          {normalizedGroups.map((group, groupIndex) => (
+            <div key={`${group.label ?? 'group'}-${groupIndex}`} className="custom-select-group">
+              {group.label ? <div className="custom-select-group-label">{group.label}</div> : null}
+              <div className="custom-select-options">
+                {group.options.map((option) => {
+                  const isSelected = String(option.value) === String(value)
+
+                  return (
+                    <button
+                      key={String(option.value)}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      className={isSelected ? 'custom-select-option selected' : 'custom-select-option'}
+                      onClick={() => {
+                        onChange(option.value)
+                        setOpen(false)
+                      }}
+                    >
+                      <span>{option.label}</span>
+                      {isSelected ? (
+                        <span className="custom-select-check" aria-hidden="true">
+                          •
+                        </span>
+                      ) : null}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
   )
 }
 
