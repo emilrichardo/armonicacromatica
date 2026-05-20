@@ -141,6 +141,46 @@ const DEFAULT_SONGS = [
     targetKey: 0,
     tempo: 86,
   },
+  {
+    id: "fur-elise-tema",
+    title: "Für Elise (tema)",
+    category: "Clásicas",
+    scoreText:
+      "E5:0.5 D#5:0.5 E5:0.5 D#5:0.5 E5:0.5 B4:0.5 D5:0.5 C5:0.5 A4:1 | C4:0.5 E4:0.5 A4:0.5 B4:1 | E4:0.5 G#4:0.5 B4:0.5 C5:1 | E4:0.5 E5:0.5 D#5:0.5 E5:0.5 D#5:0.5 E5:0.5 B4:0.5 D5:0.5 C5:0.5 A4:1 | C4:0.5 E4:0.5 A4:0.5 B4:1 | E4:0.5 C5:0.5 B4:0.5 A4:1.5",
+    sourceKey: 0,
+    targetKey: 0,
+    tempo: 96,
+  },
+  {
+    id: "canon-en-re-tema",
+    title: "Canon en Re (tema)",
+    category: "Clásicas",
+    scoreText:
+      "F#4:0.5 A4:0.5 B4:1 C#5:1 | D5:1 A4:1 B4:1 F#4:1 | G4:1 D4:1 G4:1 A4:1 | B4:1 A4:0.5 G4:0.5 F#4:1 | D4:0.5 F#4:0.5 A4:1 G4:1 | F#4:1 D4:1 E4:1 C#4:1 | D4:1 F#4:1 G4:1 E4:1 | F#4:2 A4:1 D5:1",
+    sourceKey: 2,
+    targetKey: 2,
+    tempo: 78,
+  },
+  {
+    id: "marcha-turca-tema",
+    title: "Marcha Turca (tema)",
+    category: "Clásicas",
+    scoreText:
+      "A4:0.5 B4:0.5 C5:0.5 D5:0.5 | E5:0.5 D5:0.5 C5:0.5 B4:0.5 | A4:0.5 G4:0.5 A4:0.5 B4:0.5 | C5:1 B4:1 | A4:0.5 B4:0.5 C5:0.5 D5:0.5 | E5:0.5 D5:0.5 C5:0.5 B4:0.5 | A4:0.5 G#4:0.5 A4:0.5 B4:0.5 | C5:1 A4:1 | E5:0.5 F5:0.5 E5:0.5 D5:0.5 | C5:0.5 D5:0.5 C5:0.5 B4:0.5 | A4:0.5 B4:0.5 A4:0.5 G#4:0.5 | A4:1 E4:1",
+    sourceKey: 9,
+    targetKey: 9,
+    tempo: 116,
+  },
+  {
+    id: "la-primavera-tema",
+    title: "La Primavera (tema)",
+    category: "Clásicas",
+    scoreText:
+      "E5:0.5 E5:0.5 E5:0.5 F#5:0.5 G#5:1 | E5:0.5 E5:0.5 E5:0.5 F#5:0.5 G#5:1 | B5:0.5 A5:0.5 G#5:0.5 F#5:0.5 E5:1 | B4:0.5 C#5:0.5 D#5:0.5 E5:0.5 F#5:1 | G#5:0.5 F#5:0.5 E5:0.5 D#5:0.5 C#5:1 | B4:0.5 C#5:0.5 D#5:0.5 E5:0.5 F#5:1 | E5:0.5 D#5:0.5 C#5:0.5 B4:0.5 E5:1.5",
+    sourceKey: 4,
+    targetKey: 4,
+    tempo: 108,
+  },
 ];
 const SCALE_PATTERNS = [
   {
@@ -847,6 +887,7 @@ function App() {
   const scaleWorkspaceRef = useRef(null);
   const scoreHelpRef = useRef(null);
   const previousLineIndexRef = useRef(null);
+  const pendingTransposeSyncRef = useRef(false);
 
   const tuning = TUNINGS[instrument];
   const layout = buildLayout(tuning);
@@ -945,6 +986,16 @@ function App() {
 
     return "current";
   }, [scoreText, songLibrary, songTitle]);
+  const selectedDefaultSong = useMemo(() => {
+    if (!selectedSongValue.startsWith("default:")) {
+      return null;
+    }
+
+    const songId = selectedSongValue.split(":")[1];
+    return DEFAULT_SONGS.find((song) => song.id === songId) ?? null;
+  }, [selectedSongValue]);
+  const sourceKeyLockedToDefaultSong =
+    playerMode === "songs" && selectedDefaultSong !== null;
   const defaultSongGroups = useMemo(
     () => groupItemsByCategory(DEFAULT_SONGS),
     [],
@@ -1042,6 +1093,18 @@ function App() {
   ]);
 
   useEffect(() => {
+    if (!sourceKeyLockedToDefaultSong) {
+      return;
+    }
+
+    const lockedSourceKey = selectedDefaultSong?.sourceKey ?? 0;
+
+    if (sourceKey !== lockedSourceKey) {
+      setSourceKey(lockedSourceKey);
+    }
+  }, [selectedDefaultSong, sourceKey, sourceKeyLockedToDefaultSong]);
+
+  useEffect(() => {
     function handleDocumentPointerDown(event) {
       if (!scoreHelpOpen) {
         return;
@@ -1133,6 +1196,24 @@ function App() {
       JSON.stringify(songLibrary),
     );
   }, [songLibrary]);
+
+  useEffect(() => {
+    if (!pendingTransposeSyncRef.current) {
+      return;
+    }
+
+    pendingTransposeSyncRef.current = false;
+
+    if (autoplayStatus === "playing") {
+      const resumeIndex = autoplayIndex >= 0 ? autoplayIndex : 0;
+      playSequenceFromIndex(resumeIndex);
+      return;
+    }
+
+    if (autoplayStatus === "paused" && autoplayIndex >= 0) {
+      setSelectedAutoplayEvent(autoplayIndex);
+    }
+  }, [autoplayIndex, autoplayStatus, transcribedSequence]);
 
   function stopListening() {
     if (rafRef.current) {
@@ -1881,6 +1962,16 @@ function App() {
     await playSequenceFromIndex(startIndex);
   }
 
+  function handleTargetKeySelection(nextKey) {
+    if (nextKey === targetKey) {
+      return;
+    }
+
+    pendingTransposeSyncRef.current = true;
+    setTargetKey(nextKey);
+    setSelectedKey(nextKey);
+  }
+
   const liveNote =
     manualSelection ?? autoplayCurrent ?? selectedSequenceEvent ?? detected;
   const activePositions = liveNote?.position ? [liveNote.position] : [];
@@ -2323,6 +2414,7 @@ function App() {
                       value: key.root,
                       label: `${key.label} ${t("major")}`,
                     }))}
+                    disabled={sourceKeyLockedToDefaultSong}
                     ariaLabel={
                       playerMode === "scales"
                         ? t("scaleTonic")
@@ -2335,11 +2427,9 @@ function App() {
                   <span>{t("autoplayTargetKey")}</span>
                   <CustomSelect
                     value={targetKey}
-                    onChange={(nextValue) => {
-                      const nextKey = Number(nextValue);
-                      setTargetKey(nextKey);
-                      setSelectedKey(nextKey);
-                    }}
+                    onChange={(nextValue) =>
+                      handleTargetKeySelection(Number(nextValue))
+                    }
                     options={KEY_OPTIONS.map((key) => ({
                       value: key.root,
                       label: `${key.label} ${t("major")}`,
@@ -2436,6 +2526,21 @@ function App() {
                       value={songCategory}
                       onChange={(event) => setSongCategory(event.target.value)}
                       placeholder={t("uncategorized")}
+                    />
+                  </label>
+                  <label className="autoplay-score song-title-field">
+                    <span>{t("autoplaySourceKey")}</span>
+                    <CustomSelect
+                      value={sourceKey}
+                      onChange={(nextValue) =>
+                        handleSourceKeyChange({ target: { value: nextValue } })
+                      }
+                      options={KEY_OPTIONS.map((key) => ({
+                        value: key.root,
+                        label: `${key.label} ${t("major")}`,
+                      }))}
+                      disabled={sourceKeyLockedToDefaultSong}
+                      ariaLabel={t("autoplaySourceKey")}
                     />
                   </label>
                   <label className="autoplay-score">
