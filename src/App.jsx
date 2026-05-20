@@ -2007,7 +2007,7 @@ function App() {
           aria-live="polite"
         >
           <div className="note-main">
-            {liveNote ? liveNote.note.shortLabel : ""}
+            {liveNote?.note?.shortLabel ?? ""}
             {liveNote?.note.alt ? (
               <span className="enharmonic">/{liveNote.note.alt}</span>
             ) : null}
