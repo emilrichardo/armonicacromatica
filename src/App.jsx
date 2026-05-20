@@ -6,6 +6,8 @@ import {
   buildSoftwareSchema,
   detectLocale,
   getTranslator,
+  LOCALE_LABELS,
+  SUPPORTED_LOCALES,
 } from './i18n'
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
@@ -79,6 +81,7 @@ const MAX_DEVIATION_CENTS = 35
 const RELEASE_MS = 120
 const AUTOPLAY_STORAGE_KEY = 'cromanota-autoplay-score'
 const SONG_LIBRARY_STORAGE_KEY = 'cromanota-song-library'
+const LOCALE_STORAGE_KEY = 'cromanota-locale'
 const DEFAULT_SONG_TITLE = 'Cumpleaños feliz'
 const DEFAULT_SONG_CATEGORY = 'Tradicionales'
 const DEFAULT_USER_CATEGORY = 'Mis temas'
@@ -616,9 +619,15 @@ function playHarmonicaTone(audioContext, frequency, durationMs) {
 
 function App() {
   const [storedAutoplayState] = useState(() => readStoredAutoplayState())
-  const [locale] = useState(() =>
-    detectLocale(navigator.languages ?? [navigator.language].filter(Boolean)),
-  )
+  const [locale, setLocale] = useState(() => {
+    const storedLocale = window.localStorage.getItem(LOCALE_STORAGE_KEY)
+
+    if (storedLocale && SUPPORTED_LOCALES.includes(storedLocale)) {
+      return storedLocale
+    }
+
+    return detectLocale(navigator.languages ?? [navigator.language].filter(Boolean))
+  })
   const t = getTranslator(locale)
   const [instrument, setInstrument] = useState(storedAutoplayState?.instrument ?? '64')
   const [micState, setMicState] = useState('idle')
@@ -791,6 +800,7 @@ function App() {
 
   useEffect(() => {
     applyLocalizedSeo(locale)
+    window.localStorage.setItem(LOCALE_STORAGE_KEY, locale)
 
     const schemaId = 'cromanota-software-schema'
     let schema = document.getElementById(schemaId)
@@ -1705,15 +1715,28 @@ function App() {
           </div>
         </div>
 
-        <button
-          type="button"
-          className="theme-toggle"
-          onClick={() => setTheme((currentTheme) => (currentTheme === 'dark' ? 'light' : 'dark'))}
-          aria-label={theme === 'dark' ? t('enableLight') : t('enableDark')}
-        >
-          <span aria-hidden="true">{theme === 'dark' ? '☼' : '●'}</span>
-          <span>{theme === 'dark' ? t('light') : t('dark')}</span>
-        </button>
+        <div className="menu-controls">
+          <label className="input-select locale-select">
+            <span>{t('language')}</span>
+            <select value={locale} onChange={(event) => setLocale(event.target.value)}>
+              {SUPPORTED_LOCALES.map((supportedLocale) => (
+                <option key={supportedLocale} value={supportedLocale}>
+                  {LOCALE_LABELS[supportedLocale] ?? supportedLocale.toUpperCase()}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={() => setTheme((currentTheme) => (currentTheme === 'dark' ? 'light' : 'dark'))}
+            aria-label={theme === 'dark' ? t('enableLight') : t('enableDark')}
+          >
+            <span aria-hidden="true">{theme === 'dark' ? '☼' : '●'}</span>
+            <span>{theme === 'dark' ? t('light') : t('dark')}</span>
+          </button>
+        </div>
       </nav>
 
       <section className="layout-panel">
@@ -1754,7 +1777,7 @@ function App() {
           </div>
         </div>
 
-        <div className="harmonica-scroll">
+        <div className="harmonica-scroll" dir="ltr">
           <div
             className="harmonica-frame"
             style={{ '--holes': layout.length, '--harmonica-width': `${layout.length * 70 + 126}px` }}

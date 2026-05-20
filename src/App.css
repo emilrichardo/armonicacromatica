@@ -76,6 +76,13 @@
   width: min(100%, 470px);
 }
 
+.menu-controls {
+  display: inline-flex;
+  align-items: end;
+  justify-self: end;
+  gap: 0.55rem;
+}
+
 .instrument-toggle {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -171,6 +178,10 @@
   color: var(--ink);
   font-size: 0.9rem;
   font-weight: 800;
+}
+
+.locale-select {
+  min-width: 124px;
 }
 
 .layout-panel {
@@ -1719,6 +1730,13 @@
     width: auto;
   }
 
+  .menu-controls {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 0.34rem;
+    align-items: center;
+  }
+
   .instrument-toggle {
     display: flex;
     gap: 0.28rem;
@@ -1737,6 +1755,10 @@
     padding: 0.42rem 0.48rem;
     border-radius: 12px;
     font-size: 0.72rem;
+  }
+
+  .top-nav .locale-select select {
+    width: 110px;
   }
 
   .toggle-chip {
@@ -2286,6 +2308,11 @@
     align-items: start;
   }
 
+  .menu-controls {
+    align-self: start;
+    gap: 0.18rem;
+  }
+
   .top-nav .input-select select,
   .toggle-chip {
     height: 38px;
@@ -2295,6 +2322,10 @@
   .top-nav .input-select select {
     width: 92px;
     padding: 0 0.42rem;
+  }
+
+  .top-nav .locale-select select {
+    width: 82px;
   }
 
   .toggle-chip {
